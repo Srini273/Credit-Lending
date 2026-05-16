@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Loan Underwriting System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #0F172A;
+            --secondary: #EF4444;
+            --accent: #1E40AF;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF5350;
+            --light: #F9FAFB;
+            --border: #E5E7EB;
+            --text: #374151;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--text);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            border-bottom: 4px solid var(--secondary);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .nav-tabs {
+            display: flex;
+            background: var(--light);
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto;
+        }
+
+        .nav-tab {
+            flex: 1;
+            padding: 15px 20px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text);
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .nav-tab:hover {
+            background: white;
+            color: var(--accent);
+        }
+
+        .nav-tab.active {
+            background: white;
+            color: var(--secondary);
+            border-bottom-color: var(--secondary);
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            color: var(--primary);
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title i {
+            color: var(--secondary);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--primary);
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+        }
+
+        .upload-zone {
+            border: 2px dashed var(--accent);
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--light);
+        }
+
+        .upload-zone:hover {
+            background: rgba(30, 64, 175, 0.05);
+            border-color: var(--secondary);
+        }
+
+        .upload-zone.active {
+            background: rgba(30, 64, 175, 0.1);
+            border-color: var(--secondary);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--accent);
+            margin-bottom: 15px;
+        }
+
+        .file-list {
+            margin-top: 20px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background: var(--light);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .file-item i {
+            font-size: 1.5rem;
+            color: var(--accent);
+        }
+
+        .file-item-name {
+            flex: 1;
+        }
+
+        .file-item-size {
+            font-size: 0.85rem;
+            color: #999;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+        }
+
+        button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--primary) 100%);
+            color: white;
+            flex: 1;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(30, 64, 175, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--light);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #D97706;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #EF4444;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert-success {
+            background: #D1FAE5;
+            border: 1px solid #10B981;
+            color: #047857;
+        }
+
+        .alert-warning {
+            background: #FEF3C7;
+            border: 1px solid #F59E0B;
+            color: #92400E;
+        }
+
+        .alert-danger {
+            background: #FEE2E2;
+            border: 1px solid #EF5350;
+            color: #DC2626;
+        }
+
+        .alert-info {
+            background: #DBEAFE;
+            border: 1px solid #1E40AF;
+            color: #1E40AF;
+        }
+
+        .card {
+            background: var(--light);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: #999;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .metric-status {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 8px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-green {
+            background: #D1FAE5;
+            color: #047857;
+        }
+
+        .status-yellow {
+            background: #FEF3C7;
+            color: #92400E;
+        }
+
+        .status-red {
+            background: #FEE2E2;
+            color: #DC2626;
+        }
+
+        .recommendation-box {
+            background: white;
+            border-left: 4px solid var(--accent);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .recommendation-box.approve {
+            border-left-color: var(--success);
+            background: linear-gradient(135deg, #D1FAE5 0%, white 100%);
+        }
+
+        .recommendation-box.warning {
+            border-left-color: var(--warning);
+            background: linear-gradient(135deg, #FEF3C7 0%, white 100%);
+        }
+
+        .recommendation-box.decline {
+            border-left-color: var(--danger);
+            background: linear-gradient(135deg, #FEE2E2 0%, white 100%);
+        }
+
+        .tabs-detail {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .tab-button {
+            padding: 12px 20px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--text);
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab-button:hover {
+            color: var(--accent);
+        }
+
+        .tab-button.active {
+            color: var(--secondary);
+            border-bottom-color: var(--secondary);
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        table th {
+            background: var(--primary);
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        table tr:hover {
+            background: var(--light);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid var(--light);
+            border-top: 4px solid var(--accent);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .footer {
+            background: var(--light);
+            padding: 20px;
+            text-align: center;
+            color: #999;
+            border-top: 1px solid var(--border);
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-tabs {
+                overflow-x: auto;
+            }
+
+            .nav-tab {
+                flex: 0 0 auto;
+            }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent) 0%, var(--secondary) 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .summary-table {
+            width: 100%;
+            margin: 20px 0;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .summary-row-label {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .summary-row-value {
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1><i class="fas fa-bank"></i> AI Loan Underwriting System</h1>
+            <p>Document Analysis → Creditworthiness Evaluation → Excel Report Generation</p>
+        </div>
+
+        <!-- Navigation -->
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('upload')">
+                <i class="fas fa-cloud-upload-alt"></i> Upload & Extract
+            </button>
+            <button class="nav-tab" onclick="switchTab('edit')">
+                <i class="fas fa-edit"></i> Edit Details
+            </button>
+            <button class="nav-tab" onclick="switchTab('analysis')">
+                <i class="fas fa-chart-line"></i> Analysis
+            </button>
+            <button class="nav-tab" onclick="switchTab('report')">
+                <i class="fas fa-file-excel"></i> Generate Report
+            </button>
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+
+            <!-- Tab 1: Upload & Extract -->
+            <div id="upload" class="tab-content active">
+                <div class="section-title">
+                    <i class="fas fa-cloud-upload-alt"></i> Upload Documents
+                </div>
+
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Upload borrower documents (PDF, Excel). AI will automatically extract details.</span>
+                </div>
+
+                <div class="upload-zone" id="uploadZone" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">
+                        <i class="fas fa-file-upload"></i>
+                    </div>
+                    <h3>Drag & Drop Documents Here</h3>
+                    <p>or click to select files (PDF, Excel, Images)</p>
+                    <input type="file" id="fileInput" multiple accept=".pdf,.xlsx,.xls,.jpg,.png" style="display: none;" onchange="handleFileSelect(event)">
+                </div>
+
+                <div class="file-list" id="fileList"></div>
+
+                <div class="alert alert-warning" id="extractingAlert" style="display: none;">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>Extracting data from documents...</span>
+                </div>
+
+                <div class="form-group" style="margin-top: 30px;">
+                    <label for="borrowerName">Borrower Name</label>
+                    <input type="text" id="borrowerName" placeholder="Auto-extracted from document">
+                </div>
+
+                <button class="btn-primary" onclick="startExtraction()">
+                    <i class="fas fa-magic"></i> Extract & Analyze
+                </button>
+            </div>
+
+            <!-- Tab 2: Edit Details -->
+            <div id="edit" class="tab-content">
+                <div class="section-title">
+                    <i class="fas fa-edit"></i> Edit Borrower Details
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="e_name">Borrower Name</label>
+                        <input type="text" id="e_name" placeholder="Full Name">
+                    </div>
+                    <div class="form-group">
+                        <label for="e_email">Email</label>
+                        <input type="email" id="e_email" placeholder="email@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="e_phone">Phone</label>
+                        <input type="text" id="e_phone" placeholder="+91 XXXXX XXXXX">
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-dollar-sign"></i> Income & Loan Details</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="e_monthly_income">Monthly Income (₹)</label>
+                            <input type="number" id="e_monthly_income" placeholder="50000" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="e_annual_income">Annual Income (₹)</label>
+                            <input type="number" id="e_annual_income" placeholder="600000" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="e_loan_amount">Loan Amount (₹)</label>
+                            <input type="number" id="e_loan_amount" placeholder="500000" min="0">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="e_loan_tenure">Tenure (Months)</label>
+                            <input type="number" id="e_loan_tenure" placeholder="60" min="6" max="120" value="60">
+                        </div>
+                        <div class="form-group">
+                            <label for="e_existing_emi">Existing EMI (₹)</label>
+                            <input type="number" id="e_existing_emi" placeholder="0" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="e_cibil">CIBIL Score</label>
+                            <input type="number" id="e_cibil" placeholder="650" min="300" max="900">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-briefcase"></i> Employment & Business</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="e_emp_type">Employment Type</label>
+                            <select id="e_emp_type">
+                                <option value="">Select...</option>
+                                <option value="Salaried">Salaried</option>
+                                <option value="Self-employed">Self-employed</option>
+                                <option value="Business Owner">Business Owner</option>
+                                <option value="Gig Worker">Gig Worker</option>
+                                <option value="Farmer">Farmer</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="e_work_exp">Work Experience (Years)</label>
+                            <input type="number" id="e_work_exp" placeholder="3" min="0" max="50">
+                        </div>
+                        <div class="form-group">
+                            <label for="e_company">Company/Business Name</label>
+                            <input type="text" id="e_company" placeholder="Company Name">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-university"></i> Bank & Financial Details</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="e_bank">Bank Name</label>
+                            <input type="text" id="e_bank" placeholder="Bank Name">
+                        </div>
+                        <div class="form-group">
+                            <label for="e_amb">Avg Monthly Balance (₹)</label>
+                            <input type="number" id="e_amb" placeholder="50000" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="e_bounces">Bounces (6 months)</label>
+                            <input type="number" id="e_bounces" placeholder="0" min="0">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="e_turnover">Annual Turnover (₹)</label>
+                            <input type="number" id="e_turnover" placeholder="600000" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="e_profit">Net Profit (₹)</label>
+                            <input type="number" id="e_profit" placeholder="90000" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="e_cash_flow">Monthly Cash Flow (₹)</label>
+                            <input type="number" id="e_cash_flow" placeholder="35000" min="0">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="e_current_ratio">Current Ratio</label>
+                            <input type="number" id="e_current_ratio" placeholder="1.5" min="0" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="e_de_ratio">Debt-to-Equity Ratio</label>
+                            <input type="number" id="e_de_ratio" placeholder="1.0" min="0" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="e_gst">GST Registration</label>
+                            <select id="e_gst">
+                                <option value="">Select...</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                                <option value="Not Required">Not Required</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="e_work_orders">Active Work Orders</label>
+                            <input type="number" id="e_work_orders" placeholder="0" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="e_work_orders_val">Work Orders Value (₹)</label>
+                            <input type="number" id="e_work_orders_val" placeholder="0" min="0">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-primary" onclick="analyzeNow()">
+                        <i class="fas fa-check"></i> Save & Analyze
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab 3: Analysis Dashboard -->
+            <div id="analysis" class="tab-content">
+                <div class="section-title">
+                    <i class="fas fa-chart-line"></i> Creditworthiness Analysis
+                </div>
+
+                <div id="analysisPlaceholder" class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Upload documents and click "Extract & Analyze" to see results here.</span>
+                </div>
+
+                <div id="analysisResults" style="display: none;">
+                    <!-- Recommendation Box -->
+                    <div id="recommendationBox" class="recommendation-box"></div>
+
+                    <!-- Metrics Grid -->
+                    <h3 style="margin-top: 30px; margin-bottom: 20px; color: var(--primary);">Key Metrics</h3>
+                    <div class="metrics-grid" id="metricsGrid"></div>
+
+                    <!-- Detail Tabs -->
+                    <div style="margin-top: 40px;">
+                        <div class="tabs-detail">
+                            <button class="tab-button active" onclick="switchDetailTab('cibil')">CIBIL & Credit</button>
+                            <button class="tab-button" onclick="switchDetailTab('income')">Income Safety</button>
+                            <button class="tab-button" onclick="switchDetailTab('financial')">Financial Health</button>
+                            <button class="tab-button" onclick="switchDetailTab('trend')">Trends & Cash Flow</button>
+                            <button class="tab-button" onclick="switchDetailTab('employment')">Employment</button>
+                        </div>
+
+                        <!-- CIBIL Tab -->
+                        <div id="cibil" class="tab-panel active">
+                            <div class="card">
+                                <div class="card-title"><i class="fas fa-credit-card"></i> Credit Score Assessment</div>
+                                <div class="summary-table">
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">CIBIL Score</span>
+                                        <span class="summary-row-value" id="res_cibil">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Risk Level</span>
+                                        <span id="res_cibil_risk" class="status-badge">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Approval Probability</span>
+                                        <span class="summary-row-value" id="res_cibil_prob">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Bounces (6 months)</span>
+                                        <span class="summary-row-value" id="res_bounces">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Bounce Risk</span>
+                                        <span id="res_bounce_risk" class="status-badge">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Income Tab -->
+                        <div id="income" class="tab-panel">
+                            <div class="card">
+                                <div class="card-title"><i class="fas fa-rupee-sign"></i> Income Verification & Repayment Capacity</div>
+                                <div class="summary-table">
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Monthly Income</span>
+                                        <span class="summary-row-value" id="res_monthly_income">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Proposed EMI</span>
+                                        <span class="summary-row-value" id="res_proposed_emi">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Total Obligations</span>
+                                        <span class="summary-row-value" id="res_total_obligations">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">FOIR (Fixed Obligation Income Ratio)</span>
+                                        <span id="res_foir_val" class="summary-row-value">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">FOIR Status</span>
+                                        <span id="res_foir_status" class="status-badge">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">DSCR (Debt Service Coverage)</span>
+                                        <span id="res_dscr_val" class="summary-row-value">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">DSCR Status</span>
+                                        <span id="res_dscr_status" class="status-badge">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">PTI (Payment-to-Income)</span>
+                                        <span id="res_pti_val" class="summary-row-value">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">PTI Risk</span>
+                                        <span id="res_pti_risk" class="status-badge">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">LTI (Loan-to-Income)</span>
+                                        <span id="res_lti_val" class="summary-row-value">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Financial Tab -->
+                        <div id="financial" class="tab-panel">
+                            <div class="card">
+                                <div class="card-title"><i class="fas fa-balance-scale"></i> Financial Performance & Ratios</div>
+                                <div class="summary-table">
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Annual Turnover</span>
+                                        <span class="summary-row-value" id="res_turnover">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Net Profit</span>
+                                        <span class="summary-row-value" id="res_profit">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Profit Margin</span>
+                                        <span id="res_profit_margin" class="summary-row-value">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Profit Assessment</span>
+                                        <span id="res_profit_assess" class="status-badge">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Current Ratio</span>
+                                        <span id="res_current_ratio" class="summary-row-value">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Current Ratio Assessment</span>
+                                        <span id="res_current_assess" class="status-badge">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Debt-to-Equity Ratio</span>
+                                        <span id="res_de_ratio" class="summary-row-value">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">D/E Assessment</span>
+                                        <span id="res_de_assess" class="status-badge">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Avg Monthly Balance</span>
+                                        <span class="summary-row-value" id="res_amb">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Liquidity Buffer</span>
+                                        <span id="res_liquidity" class="status-badge">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Trends Tab -->
+                        <div id="trend" class="tab-panel">
+                            <div class="card">
+                                <div class="card-title"><i class="fas fa-chart-bar"></i> Trend Analysis & Cash Flow</div>
+                                <div class="summary-table">
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Monthly Cash Flow</span>
+                                        <span class="summary-row-value" id="res_monthly_cf">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Cash Flow Adequacy</span>
+                                        <span id="res_cf_adequacy" class="status-badge">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Business Trend</span>
+                                        <span id="res_trend" class="status-badge">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Cash Flow Trend</span>
+                                        <span id="res_cf_trend" class="status-badge">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Employment Tab -->
+                        <div id="employment" class="tab-panel">
+                            <div class="card">
+                                <div class="card-title"><i class="fas fa-briefcase"></i> Employment & Work Orders</div>
+                                <div class="summary-table">
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Employment Type</span>
+                                        <span id="res_emp_type" class="summary-row-value">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Work Experience</span>
+                                        <span id="res_emp_exp" class="summary-row-value">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Stability Score</span>
+                                        <span id="res_emp_stability" class="summary-row-value">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Tenure Risk</span>
+                                        <span id="res_tenure_risk" class="status-badge">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Active Work Orders</span>
+                                        <span class="summary-row-value" id="res_work_orders">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Work Orders Value</span>
+                                        <span class="summary-row-value" id="res_wo_value">-</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-row-label">Pipeline Stability</span>
+                                        <span id="res_pipeline" class="status-badge">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 4: Generate Report -->
+            <div id="report" class="tab-content">
+                <div class="section-title">
+                    <i class="fas fa-file-excel"></i> Generate Excel Report
+                </div>
+
+                <div id="reportPlaceholder" class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Complete the analysis first to generate the Excel report.</span>
+                </div>
+
+                <div id="reportSection" style="display: none;">
+                    <div class="card">
+                        <div class="card-title"><i class="fas fa-download"></i> Download Underwriting Report</div>
+                        <p style="margin-bottom: 20px; color: #666;">Your comprehensive loan underwriting analysis will be exported as an Excel file with detailed sections covering CIBIL assessment, income safety, financial health, trends, and final recommendations.</p>
+                        
+                        <div style="background: var(--light); padding: 20px; border-radius: 8px; margin: 20px 0;">
+                            <h4 style="margin-bottom: 10px;">Report Contents:</h4>
+                            <ul style="margin-left: 20px; line-height: 1.8;">
+                                <li>Borrower Information & KYC</li>
+                                <li>Loan Request & Structuring</li>
+                                <li>CIBIL Score & Credit Risk</li>
+                                <li>Income Verification & Ratios (FOIR, DSCR, PTI, LTI)</li>
+                                <li>Financial Performance & Key Ratios</li>
+                                <li>Employment Stability & Work Orders</li>
+                                <li>Trend Analysis & Cash Flow Forecast</li>
+                                <li>Final Underwriting Recommendation</li>
+                                <li>Key Findings & Risk Summary</li>
+                            </ul>
+                        </div>
+
+                        <button class="btn-success" onclick="generateExcelReport()" style="width: 100%;">
+                            <i class="fas fa-download"></i> Download Excel Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>🏦 AI Loan Underwriting System v1.0</strong></p>
+            <p>Document Extraction → Creditworthiness Analysis → Excel Report Generation</p>
+            <p style="font-size: 0.9rem; margin-top: 10px;">Final credit decisions remain with authorized credit officers.</p>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        // Global state
+        let borrowerData = {};
+        let analysisResults = {};
+        let uploadedFiles = [];
+
+        // Tab switching
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function switchDetailTab(tabName) {
+            document.querySelectorAll('.tab-panel').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // File handling
+        function handleDragOver(e) {
+            e.preventDefault();
+            document.getElementById('uploadZone').classList.add('active');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            document.getElementById('uploadZone').classList.remove('active');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            document.getElementById('uploadZone').classList.remove('active');
+            const files = e.dataTransfer.files;
+            handleFiles(files);
+        }
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            uploadedFiles = Array.from(files);
+            displayFileList();
+        }
+
+        function displayFileList() {
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '<h3 style="margin-top: 20px; margin-bottom: 15px;">Uploaded Files:</h3>';
+            uploadedFiles.forEach((file, index) => {
+                const item = document.createElement('div');
+                item.className = 'file-item';
+                const icon = file.type.includes('pdf') ? 'fa-file-pdf' : file.type.includes('sheet') ? 'fa-file-excel' : 'fa-image';
+                item.innerHTML = `
+                    <i class="fas ${icon}"></i>
+                    <div class="file-item-name">${file.name}</div>
+                    <div class="file-item-size">${(file.size / 1024).toFixed(1)} KB</div>
+                    <button class="btn-secondary" onclick="removeFile(${index})" style="padding: 6px 12px; font-size: 0.9rem;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                `;
+                fileList.appendChild(item);
+            });
+        }
+
+        function removeFile(index) {
+            uploadedFiles.splice(index, 1);
+            displayFileList();
+        }
+
+        function startExtraction() {
+            if (uploadedFiles.length === 0) {
+                alert('Please upload at least one file');
+                return;
+            }
+
+            document.getElementById('extractingAlert').style.display = 'flex';
+            
+            // Simulate extraction and populate sample data
+            setTimeout(() => {
+                document.getElementById('extractingAlert').style.display = 'none';
+                
+                // Auto-populate form with extracted data
+                borrowerData = {
+                    name: 'Rajesh Kumar',
+                    email: 'rajesh@example.com',
+                    phone: '9876543210',
+                    monthly_income: 75000,
+                    annual_income: 900000,
+                    loan_amount: 750000,
+                    loan_tenure: 60,
+                    existing_emi: 15000,
+                    cibil_score: 720,
+                    emp_type: 'Business Owner',
+                    work_exp: 5,
+                    company: 'ABC Trading Pvt Ltd',
+                    bank: 'ICICI Bank',
+                    amb: 85000,
+                    bounces: 0,
+                    turnover: 900000,
+                    profit: 135000,
+                    cash_flow: 45000,
+                    current_ratio: 1.8,
+                    de_ratio: 0.8,
+                    gst: 'Yes',
+                    work_orders: 3,
+                    work_orders_val: 2000000
+                };
+
+                // Update edit form
+                updateEditForm();
+                
+                // Switch to edit tab
+                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+                document.querySelector('.nav-tab:nth-child(2)').classList.add('active');
+                document.getElementById('edit').classList.add('active');
+                
+                alert('✅ Data extracted successfully! Review and edit if needed, then click "Save & Analyze"');
+            }, 2000);
+        }
+
+        function updateEditForm() {
+            document.getElementById('e_name').value = borrowerData.name || '';
+            document.getElementById('e_email').value = borrowerData.email || '';
+            document.getElementById('e_phone').value = borrowerData.phone || '';
+            document.getElementById('e_monthly_income').value = borrowerData.monthly_income || '';
+            document.getElementById('e_annual_income').value = borrowerData.annual_income || '';
+            document.getElementById('e_loan_amount').value = borrowerData.loan_amount || '';
+            document.getElementById('e_loan_tenure').value = borrowerData.loan_tenure || 60;
+            document.getElementById('e_existing_emi').value = borrowerData.existing_emi || '';
+            document.getElementById('e_cibil').value = borrowerData.cibil_score || '';
+            document.getElementById('e_emp_type').value = borrowerData.emp_type || '';
+            document.getElementById('e_work_exp').value = borrowerData.work_exp || '';
+            document.getElementById('e_company').value = borrowerData.company || '';
+            document.getElementById('e_bank').value = borrowerData.bank || '';
+            document.getElementById('e_amb').value = borrowerData.amb || '';
+            document.getElementById('e_bounces').value = borrowerData.bounces || '';
+            document.getElementById('e_turnover').value = borrowerData.turnover || '';
+            document.getElementById('e_profit').value = borrowerData.profit || '';
+            document.getElementById('e_cash_flow').value = borrowerData.cash_flow || '';
+            document.getElementById('e_current_ratio').value = borrowerData.current_ratio || '';
+            document.getElementById('e_de_ratio').value = borrowerData.de_ratio || '';
+            document.getElementById('e_gst').value = borrowerData.gst || '';
+            document.getElementById('e_work_orders').value = borrowerData.work_orders || '';
+            document.getElementById('e_work_orders_val').value = borrowerData.work_orders_val || '';
+        }
+
+        function analyzeNow() {
+            // Collect data from form
+            borrowerData = {
+                name: document.getElementById('e_name').value,
+                email: document.getElementById('e_email').value,
+                phone: document.getElementById('e_phone').value,
+                monthly_income: parseFloat(document.getElementById('e_monthly_income').value) || 0,
+                annual_income: parseFloat(document.getElementById('e_annual_income').value) || 0,
+                loan_amount: parseFloat(document.getElementById('e_loan_amount').value) || 0,
+                loan_tenure: parseFloat(document.getElementById('e_loan_tenure').value) || 60,
+                existing_emi: parseFloat(document.getElementById('e_existing_emi').value) || 0,
+                cibil_score: parseFloat(document.getElementById('e_cibil').value) || 650,
+                emp_type: document.getElementById('e_emp_type').value,
+                work_exp: parseFloat(document.getElementById('e_work_exp').value) || 0,
+                company: document.getElementById('e_company').value,
+                bank: document.getElementById('e_bank').value,
+                amb: parseFloat(document.getElementById('e_amb').value) || 0,
+                bounces: parseFloat(document.getElementById('e_bounces').value) || 0,
+                turnover: parseFloat(document.getElementById('e_turnover').value) || 0,
+                profit: parseFloat(document.getElementById('e_profit').value) || 0,
+                cash_flow: parseFloat(document.getElementById('e_cash_flow').value) || 0,
+                current_ratio: parseFloat(document.getElementById('e_current_ratio').value) || 1.5,
+                de_ratio: parseFloat(document.getElementById('e_de_ratio').value) || 1.0,
+                gst: document.getElementById('e_gst').value,
+                work_orders: parseFloat(document.getElementById('e_work_orders').value) || 0,
+                work_orders_val: parseFloat(document.getElementById('e_work_orders_val').value) || 0
+            };
+
+            // Perform analysis
+            analysisResults = performAnalysis(borrowerData);
+
+            // Display results
+            displayAnalysisResults();
+
+            // Switch to analysis tab
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelector('.nav-tab:nth-child(3)').classList.add('active');
+            document.getElementById('analysis').classList.add('active');
+
+            alert('✅ Analysis complete! View the Analysis tab for detailed results.');
+        }
+
+        function performAnalysis(data) {
+            const monthly_income = data.monthly_income || (data.annual_income / 12) || 0;
+            const annual_income = data.annual_income || (monthly_income * 12) || 0;
+            const loan_amount = data.loan_amount || 0;
+            const tenure_months = data.loan_tenure || 60;
+            const existing_emi = data.existing_emi || 0;
+            const cibil = data.cibil_score || 650;
+
+            // Calculate EMI
+            const rate = 0.0083; // ~10% p.a.
+            const proposed_emi = (loan_amount * rate * Math.pow(1 + rate, tenure_months)) / (Math.pow(1 + rate, tenure_months) - 1);
+            const total_obligations = existing_emi + proposed_emi;
+
+            // Calculate ratios
+            const foir = monthly_income > 0 ? (total_obligations / monthly_income) * 100 : 100;
+            const dscr = proposed_emi > 0 ? (monthly_income - total_obligations) / proposed_emi : 0;
+            const pti = monthly_income > 0 ? (proposed_emi / monthly_income) * 100 : 100;
+            const lti = annual_income > 0 ? loan_amount / annual_income : 10;
+
+            // CIBIL Risk
+            const cibil_risk = cibil >= 750 ? 'Low Risk' : cibil >= 650 ? 'Moderate Risk' : cibil >= 550 ? 'High Risk' : 'Very High Risk';
+            const cibil_prob = Math.max(95 - (750 - cibil) * 0.2, 10);
+
+            // Employment
+            const emp_stability = data.emp_type.toLowerCase().includes('salaried') ? 90 : data.emp_type.toLowerCase().includes('business') ? 70 : 50;
+            const tenure_risk = data.work_exp >= 5 ? 'Low' : data.work_exp >= 2 ? 'Medium' : 'High';
+
+            // Liquidity
+            const amb_to_emi = proposed_emi > 0 ? data.amb / proposed_emi : 0;
+            const liquidity = amb_to_emi >= 2 ? 'Strong' : amb_to_emi >= 1 ? 'Moderate' : 'Weak';
+            const cf_adequacy = data.cash_flow >= proposed_emi * 1.5 ? 'Strong' : data.cash_flow >= proposed_emi ? 'Adequate' : 'Weak';
+
+            // Financial ratios
+            const cr_assess = data.current_ratio >= 2 ? 'Strong' : data.current_ratio >= 1.5 ? 'Acceptable' : 'Weak';
+            const de_assess = data.de_ratio < 1 ? 'Conservative' : data.de_ratio < 2 ? 'Moderate' : 'High Leverage';
+            const profit_margin = data.turnover > 0 ? (data.profit / data.turnover) * 100 : 0;
+            const pm_assess = profit_margin > 20 ? 'Excellent' : profit_margin > 12 ? 'Good' : profit_margin > 5 ? 'Average' : 'Weak';
+
+            // Bounce risk
+            const bounce_risk = data.bounces === 0 ? 'Low' : data.bounces <= 2 ? 'Medium' : 'High';
+
+            // Work orders
+            const wo_stability = data.work_orders >= 5 && data.work_orders_val >= loan_amount * 2 ? 'Strong Pipeline' : data.work_orders >= 3 ? 'Moderate' : 'Weak';
+
+            // Trends
+            const trend = profit_margin >= 12 && data.cash_flow >= proposed_emi * 1.5 ? 'Stable' : 'Caution';
+            const cf_trend = cf_adequacy === 'Strong' ? 'Improving' : cf_adequacy === 'Weak' ? 'Declining' : 'Stable';
+
+            // Creditworthiness score
+            let score = 50;
+            score += (cibil / 900) * 20;
+            score += foir < 40 ? 20 : foir < 55 ? 15 : foir < 70 ? 10 : 5;
+            score += dscr >= 1.25 ? 15 : dscr >= 1.0 ? 10 : dscr >= 0.8 ? 5 : 0;
+            score += emp_stability >= 80 ? 10 : emp_stability >= 60 ? 7 : 3;
+            score += amb_to_emi >= 2 ? 10 : amb_to_emi >= 1 ? 5 : 2;
+            score += (data.current_ratio >= 1.5) ? 8 : 3;
+            score += bounce_risk === 'Low' ? 7 : bounce_risk === 'Medium' ? 3 : 0;
+            score += wo_stability === 'Strong Pipeline' ? 5 : wo_stability === 'Moderate' ? 2 : 0;
+
+            // Recommendation
+            let recommendation = '';
+            let recommendation_level = '';
+            if (score >= 80 && cibil >= 700 && foir < 40 && dscr >= 1.25) {
+                recommendation = '✅ APPROVE - Strong financial profile with excellent repayment capacity';
+                recommendation_level = 'APPROVE';
+            } else if (score >= 65 && cibil >= 650 && foir < 55 && dscr >= 1.0) {
+                recommendation = '⚠️ APPROVE WITH CONDITIONS - Consider higher down-payment or shorter tenure';
+                recommendation_level = 'CONDITIONAL';
+            } else if (score >= 50 && cibil >= 600 && foir < 65) {
+                recommendation = '🔍 REFER FOR MANUAL REVIEW - Senior analyst assessment required';
+                recommendation_level = 'MANUAL REVIEW';
+            } else {
+                recommendation = '❌ DECLINE - Insufficient repayment capacity or credit history concerns';
+                recommendation_level = 'DECLINE';
+            }
+
+            return {
+                score: Math.round(score * 10) / 10,
+                recommendation,
+                recommendation_level,
+                cibil_score: cibil,
+                cibil_risk,
+                cibil_prob: Math.round(cibil_prob * 10) / 10,
+                monthly_income: Math.round(monthly_income * 100) / 100,
+                annual_income: Math.round(annual_income * 100) / 100,
+                proposed_emi: Math.round(proposed_emi * 100) / 100,
+                total_obligations: Math.round(total_obligations * 100) / 100,
+                foir: Math.round(foir * 10) / 10,
+                foir_risk: foir < 40 ? 'Safe' : foir < 55 ? 'Moderate' : foir < 70 ? 'High Risk' : 'Very High Risk',
+                dscr: Math.round(dscr * 100) / 100,
+                dscr_status: dscr >= 1.25 ? 'Healthy' : dscr >= 1.0 ? 'Marginal' : 'Stressed',
+                pti: Math.round(pti * 10) / 10,
+                pti_risk: pti < 30 ? 'Safe' : pti < 45 ? 'Moderate' : 'High Risk',
+                lti: Math.round(lti * 100) / 100,
+                bounces: data.bounces,
+                bounce_risk,
+                emp_type: data.emp_type,
+                emp_exp: data.work_exp,
+                emp_stability,
+                tenure_risk,
+                amb: Math.round(data.amb * 100) / 100,
+                amb_to_emi: Math.round(amb_to_emi * 100) / 100,
+                liquidity,
+                cf: Math.round(data.cash_flow * 100) / 100,
+                cf_adequacy,
+                turnover: Math.round(data.turnover * 100) / 100,
+                profit: Math.round(data.profit * 100) / 100,
+                profit_margin: Math.round(profit_margin * 10) / 10,
+                pm_assess,
+                current_ratio: Math.round(data.current_ratio * 100) / 100,
+                cr_assess,
+                de_ratio: Math.round(data.de_ratio * 100) / 100,
+                de_assess,
+                wo_count: data.work_orders,
+                wo_value: Math.round(data.work_orders_val * 100) / 100,
+                wo_stability,
+                trend,
+                cf_trend
+            };
+        }
+
+        function displayAnalysisResults() {
+            document.getElementById('analysisPlaceholder').style.display = 'none';
+            document.getElementById('analysisResults').style.display = 'block';
+            document.getElementById('reportPlaceholder').style.display = 'none';
+            document.getElementById('reportSection').style.display = 'block';
+
+            const res = analysisResults;
+
+            // Recommendation box
+            const recBox = document.getElementById('recommendationBox');
+            const recClass = res.recommendation_level === 'APPROVE' ? 'approve' : res.recommendation_level.includes('CONDITIONAL') ? 'warning' : 'decline';
+            recBox.className = `recommendation-box ${recClass}`;
+            recBox.innerHTML = `
+                <div style="font-size: 1.3rem; font-weight: 700; margin-bottom: 10px;">
+                    Creditworthiness Score: ${res.score}/100
+                </div>
+                <div style="font-size: 1.1rem; margin-bottom: 15px;">
+                    ${res.recommendation}
+                </div>
+                <div style="font-size: 0.95rem; opacity: 0.9;">
+                    <strong>Recommendation Level:</strong> ${res.recommendation_level}
+                </div>
+            `;
+
+            // Metrics grid
+            const metricsGrid = document.getElementById('metricsGrid');
+            metricsGrid.innerHTML = `
+                <div class="metric-card">
+                    <div class="metric-label">CIBIL Score</div>
+                    <div class="metric-value">${res.cibil_score}</div>
+                    <div class="metric-status"><span class="status-badge status-${res.cibil_score >= 700 ? 'green' : res.cibil_score >= 650 ? 'yellow' : 'red'}">${res.cibil_risk}</span></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Monthly Income</div>
+                    <div class="metric-value">₹${(res.monthly_income / 1000).toFixed(0)}K</div>
+                    <div class="metric-status">Annual: ₹${(res.annual_income / 100000).toFixed(1)}L</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">FOIR Ratio</div>
+                    <div class="metric-value">${res.foir.toFixed(1)}%</div>
+                    <div class="metric-status"><span class="status-badge status-${res.foir < 40 ? 'green' : res.foir < 55 ? 'yellow' : 'red'}">${res.foir_risk}</span></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">DSCR</div>
+                    <div class="metric-value">${res.dscr.toFixed(2)}x</div>
+                    <div class="metric-status"><span class="status-badge status-${res.dscr >= 1.25 ? 'green' : res.dscr >= 1.0 ? 'yellow' : 'red'}">${res.dscr_status}</span></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">PTI Ratio</div>
+                    <div class="metric-value">${res.pti.toFixed(1)}%</div>
+                    <div class="metric-status"><span class="status-badge status-${res.pti < 30 ? 'green' : res.pti < 45 ? 'yellow' : 'red'}">${res.pti_risk}</span></div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Liquidity Buffer</div>
+                    <div class="metric-value">${res.amb_to_emi.toFixed(2)}x</div>
+                    <div class="metric-status"><span class="status-badge status-${res.liquidity === 'Strong' ? 'green' : res.liquidity === 'Moderate' ? 'yellow' : 'red'}">${res.liquidity}</span></div>
+                </div>
+            `;
+
+            // Update detail tabs
+            // CIBIL Tab
+            document.getElementById('res_cibil').textContent = res.cibil_score;
+            document.getElementById('res_cibil_risk').textContent = res.cibil_risk;
+            document.getElementById('res_cibil_risk').className = `status-badge status-${res.cibil_score >= 700 ? 'green' : res.cibil_score >= 650 ? 'yellow' : 'red'}`;
+            document.getElementById('res_cibil_prob').textContent = res.cibil_prob + '%';
+            document.getElementById('res_bounces').textContent = res.bounces;
+            document.getElementById('res_bounce_risk').textContent = res.bounce_risk;
+            document.getElementById('res_bounce_risk').className = `status-badge status-${res.bounce_risk === 'Low' ? 'green' : res.bounce_risk === 'Medium' ? 'yellow' : 'red'}`;
+
+            // Income Tab
+            document.getElementById('res_monthly_income').textContent = `₹${res.monthly_income.toLocaleString()}`;
+            document.getElementById('res_proposed_emi').textContent = `₹${res.proposed_emi.toLocaleString()}`;
+            document.getElementById('res_total_obligations').textContent = `₹${res.total_obligations.toLocaleString()}`;
+            document.getElementById('res_foir_val').textContent = res.foir.toFixed(1) + '%';
+            document.getElementById('res_foir_status').textContent = res.foir_risk;
+            document.getElementById('res_foir_status').className = `status-badge status-${res.foir < 40 ? 'green' : res.foir < 55 ? 'yellow' : 'red'}`;
+            document.getElementById('res_dscr_val').textContent = res.dscr.toFixed(2) + 'x';
+            document.getElementById('res_dscr_status').textContent = res.dscr_status;
+            document.getElementById('res_dscr_status').className = `status-badge status-${res.dscr >= 1.25 ? 'green' : res.dscr >= 1.0 ? 'yellow' : 'red'}`;
+            document.getElementById('res_pti_val').textContent = res.pti.toFixed(1) + '%';
+            document.getElementById('res_pti_risk').textContent = res.pti_risk;
+            document.getElementById('res_pti_risk').className = `status-badge status-${res.pti < 30 ? 'green' : res.pti < 45 ? 'yellow' : 'red'}`;
+            document.getElementById('res_lti_val').textContent = res.lti.toFixed(2) + 'x';
+
+            // Financial Tab
+            document.getElementById('res_turnover').textContent = `₹${res.turnover.toLocaleString()}`;
+            document.getElementById('res_profit').textContent = `₹${res.profit.toLocaleString()}`;
+            document.getElementById('res_profit_margin').textContent = res.profit_margin.toFixed(1) + '%';
+            document.getElementById('res_profit_assess').textContent = res.pm_assess;
+            document.getElementById('res_profit_assess').className = `status-badge status-${res.profit_margin > 15 ? 'green' : res.profit_margin > 10 ? 'yellow' : 'red'}`;
+            document.getElementById('res_current_ratio').textContent = res.current_ratio.toFixed(2);
+            document.getElementById('res_current_assess').textContent = res.cr_assess;
+            document.getElementById('res_current_assess').className = `status-badge status-${res.current_ratio >= 2 ? 'green' : res.current_ratio >= 1.5 ? 'yellow' : 'red'}`;
+            document.getElementById('res_de_ratio').textContent = res.de_ratio.toFixed(2);
+            document.getElementById('res_de_assess').textContent = res.de_assess;
+            document.getElementById('res_de_assess').className = `status-badge status-${res.de_ratio < 1 ? 'green' : res.de_ratio < 2 ? 'yellow' : 'red'}`;
+            document.getElementById('res_amb').textContent = `₹${res.amb.toLocaleString()}`;
+            document.getElementById('res_liquidity').textContent = res.liquidity;
+            document.getElementById('res_liquidity').className = `status-badge status-${res.liquidity === 'Strong' ? 'green' : res.liquidity === 'Moderate' ? 'yellow' : 'red'}`;
+
+            // Trends Tab
+            document.getElementById('res_monthly_cf').textContent = `₹${res.cf.toLocaleString()}`;
+            document.getElementById('res_cf_adequacy').textContent = res.cf_adequacy;
+            document.getElementById('res_cf_adequacy').className = `status-badge status-${res.cf_adequacy === 'Strong' ? 'green' : res.cf_adequacy === 'Adequate' ? 'yellow' : 'red'}`;
+            document.getElementById('res_trend').textContent = res.trend;
+            document.getElementById('res_trend').className = `status-badge status-${res.trend === 'Stable' ? 'green' : 'yellow'}`;
+            document.getElementById('res_cf_trend').textContent = res.cf_trend;
+            document.getElementById('res_cf_trend').className = `status-badge status-${res.cf_trend === 'Improving' ? 'green' : res.cf_trend === 'Stable' ? 'yellow' : 'red'}`;
+
+            // Employment Tab
+            document.getElementById('res_emp_type').textContent = res.emp_type;
+            document.getElementById('res_emp_exp').textContent = res.emp_exp + ' years';
+            document.getElementById('res_emp_stability').textContent = res.emp_stability + '/100';
+            document.getElementById('res_tenure_risk').textContent = res.tenure_risk;
+            document.getElementById('res_tenure_risk').className = `status-badge status-${res.tenure_risk === 'Low' ? 'green' : res.tenure_risk === 'Medium' ? 'yellow' : 'red'}`;
+            document.getElementById('res_work_orders').textContent = res.wo_count;
+            document.getElementById('res_wo_value').textContent = `₹${res.wo_value.toLocaleString()}`;
+            document.getElementById('res_pipeline').textContent = res.wo_stability;
+            document.getElementById('res_pipeline').className = `status-badge status-${res.wo_stability === 'Strong Pipeline' ? 'green' : res.wo_stability === 'Moderate' ? 'yellow' : 'red'}`;
+        }
+
+        function generateExcelReport() {
+            // Create new workbook
+            const wb = XLSX.utils.book_new();
+
+            // Summary sheet data
+            const summaryData = [
+                ['LOAN UNDERWRITING SUMMARY REPORT'],
+                [`Generated: ${new Date().toLocaleString()}`],
+                [],
+                ['#', 'Borrower Name', 'CIBIL', 'Monthly Income', 'Loan Amount', 'FOIR (%)', 'DSCR', 'Recommendation'],
+                [1, borrowerData.name, analysisResults.cibil_score, analysisResults.monthly_income, borrowerData.loan_amount, analysisResults.foir.toFixed(1), analysisResults.dscr.toFixed(2), analysisResults.recommendation_level]
+            ];
+
+            const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+            summarySheet['!cols'] = [{wch: 5}, {wch: 20}, {wch: 10}, {wch: 18}, {wch: 15}, {wch: 12}, {wch: 10}, {wch: 20}];
+            XLSX.utils.book_append_sheet(wb, summarySheet, 'Summary');
+
+            // Borrower details sheet
+            const detailsData = [
+                ['LOAN UNDERWRITING ANALYSIS - ' + borrowerData.name.toUpperCase()],
+                [`Analysis Date: ${new Date().toLocaleDateString()}`],
+                [],
+                ['SECTION 1: BORROWER INFORMATION'],
+                ['Borrower Name', borrowerData.name],
+                ['Email', borrowerData.email],
+                ['Phone', borrowerData.phone],
+                [],
+                ['SECTION 2: LOAN REQUEST & STRUCTURING'],
+                ['Loan Amount (₹)', borrowerData.loan_amount],
+                ['Tenure (Months)', borrowerData.loan_tenure],
+                ['Proposed EMI (₹)', analysisResults.proposed_emi],
+                ['Existing EMI (₹)', analysisResults.total_obligations - analysisResults.proposed_emi],
+                [],
+                ['SECTION 3: CIBIL & CREDIT RISK'],
+                ['CIBIL Score', analysisResults.cibil_score],
+                ['Risk Classification', analysisResults.cibil_risk],
+                ['Approval Probability (%)', analysisResults.cibil_prob],
+                ['Bounces (6 months)', analysisResults.bounces],
+                [],
+                ['SECTION 4: INCOME & REPAYMENT CAPACITY'],
+                ['Monthly Income (₹)', analysisResults.monthly_income],
+                ['Annual Income (₹)', analysisResults.annual_income],
+                ['FOIR (%)', analysisResults.foir.toFixed(1)],
+                ['FOIR Status', analysisResults.foir_risk],
+                ['DSCR', analysisResults.dscr.toFixed(2)],
+                ['DSCR Status', analysisResults.dscr_status],
+                ['PTI (%)', analysisResults.pti.toFixed(1)],
+                ['LTI', analysisResults.lti.toFixed(2)],
+                [],
+                ['SECTION 5: FINANCIAL HEALTH'],
+                ['Annual Turnover (₹)', analysisResults.turnover],
+                ['Net Profit (₹)', analysisResults.profit],
+                ['Profit Margin (%)', analysisResults.profit_margin.toFixed(1)],
+                ['Current Ratio', analysisResults.current_ratio],
+                ['Debt-to-Equity Ratio', analysisResults.de_ratio],
+                ['Avg Monthly Balance (₹)', analysisResults.amb],
+                [],
+                ['SECTION 6: EMPLOYMENT & STABILITY'],
+                ['Employment Type', borrowerData.emp_type],
+                ['Work Experience (Years)', borrowerData.work_exp],
+                ['Employment Stability Score', analysisResults.emp_stability],
+                ['Work Orders', analysisResults.wo_count],
+                [],
+                ['SECTION 7: FINAL RECOMMENDATION'],
+                ['Creditworthiness Score', analysisResults.score + '/100'],
+                ['Recommendation', analysisResults.recommendation_level],
+                ['Details', analysisResults.recommendation]
+            ];
+
+            const detailsSheet = XLSX.utils.aoa_to_sheet(detailsData);
+            detailsSheet['!cols'] = [{wch: 40}, {wch: 35}];
+            XLSX.utils.book_append_sheet(wb, detailsSheet, 'Borrower_Details');
+
+            // Write file
+            const fileName = `Loan_Underwriting_${borrowerData.name.replace(/\s+/g, '_')}_${new Date().getTime()}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+
+            alert('✅ Excel report downloaded successfully!');
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            // Setup complete
+        });
+    </script>
+</body>
+</html>
