@@ -1,0 +1,3434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Credit Intelligence Platform v4.0 | Banking Risk Suite</title>
+<meta name="description" content="Production-grade AI-powered credit risk analysis platform with OCR document extraction, financial ratio computation, and automated lending recommendations.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Client-Side Document Parsers (Free, No Billing Console or Backend Server Required) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════════════
+   ROOT DESIGN TOKENS — BANKING DARK GLASSMORPHISM
+═══════════════════════════════════════════════════ */
+:root {
+  --bg0: #060B18;
+  --bg1: #0B1226;
+  --bg2: #101830;
+  --glass: rgba(255,255,255,0.05);
+  --glass-h: rgba(255,255,255,0.08);
+  --glass-b: rgba(255,255,255,0.09);
+  --glass-s: 0 8px 32px rgba(0,0,0,0.45);
+  --p1: #6366F1;
+  --p2: #8B5CF6;
+  --pg: linear-gradient(135deg,#6366F1 0%,#8B5CF6 100%);
+  --pg2: linear-gradient(135deg,#818CF8 0%,#A78BFA 100%);
+  --glow: 0 0 30px rgba(99,102,241,0.3);
+  --ok: #10B981;  --ok-s: rgba(16,185,129,0.15);
+  --warn: #F59E0B; --warn-s: rgba(245,158,11,0.15);
+  --err: #EF4444;  --err-s: rgba(239,68,68,0.15);
+  --inf: #3B82F6;
+  --t0: #F8FAFC; --t1: #CBD5E1; --t2: #94A3B8; --t3: #64748B;
+  --r-sm: 10px; --r-md: 14px; --r-lg: 20px; --r-xl: 28px;
+  --tr: 0.25s cubic-bezier(.4,0,.2,1);
+  --tr-s: 0.45s cubic-bezier(.4,0,.2,1);
+  --tr-sp: 0.5s cubic-bezier(.175,.885,.32,1.275);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  background:var(--bg0);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 15% 40%, rgba(99,102,241,0.18) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 85% 15%, rgba(139,92,246,0.12) 0%, transparent 45%),
+    radial-gradient(ellipse 50% 60% at 50% 100%, rgba(16,185,129,0.06) 0%, transparent 50%);
+  min-height:100vh; color:var(--t0);
+  overflow-x:hidden;
+}
+/* scrollbar */
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:rgba(255,255,255,.02);}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:4px;}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.18);}
+
+/* ═══════════════════════════════════════════════════
+   PROCESSING OVERLAY  (fullscreen, blocks all input)
+═══════════════════════════════════════════════════ */
+#overlay{
+  position:fixed;inset:0;z-index:9999;
+  background:rgba(6,11,24,0.93);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  display:none;align-items:center;justify-content:center;
+}
+#overlay.show{display:flex;animation:ovIn .3s ease;}
+@keyframes ovIn{from{opacity:0}to{opacity:1}}
+.ov-panel{
+  background:linear-gradient(160deg,rgba(11,18,38,0.98),rgba(16,24,48,0.98));
+  border:1px solid var(--glass-b);
+  border-radius:var(--r-xl);padding:48px 44px;
+  width:560px;max-width:93vw;text-align:center;
+  box-shadow:0 40px 80px rgba(0,0,0,0.7),0 0 60px rgba(99,102,241,0.08);
+}
+/* Dual-ring animation */
+.ov-rings{width:96px;height:96px;margin:0 auto 28px;position:relative;}
+.ring1,.ring2{
+  position:absolute;inset:0;border-radius:50%;
+  border:3px solid transparent;
+}
+.ring1{
+  border-top-color:var(--p1);border-right-color:var(--p2);
+  animation:spin1 1.3s linear infinite;
+}
+.ring2{
+  inset:12px;
+  border-bottom-color:var(--ok);border-left-color:rgba(99,102,241,.4);
+  animation:spin1 .85s linear infinite reverse;
+}
+.ring-icon{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  font-size:1.5rem;
+  background:var(--pg);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+@keyframes spin1{to{transform:rotate(360deg)}}
+.ov-title{font-size:1.35rem;font-weight:800;color:var(--t0);margin-bottom:6px;}
+.ov-desc{font-size:0.875rem;color:var(--t2);margin-bottom:28px;line-height:1.6;}
+/* progress bar */
+.pb-track{
+  background:rgba(255,255,255,0.06);border-radius:8px;height:8px;overflow:hidden;margin-bottom:8px;
+}
+.pb-fill{
+  height:100%;background:var(--pg);border-radius:8px;
+  transition:width .5s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;
+}
+.pb-fill::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.3) 50%,transparent 100%);
+  animation:shimmer 1.6s infinite;
+}
+@keyframes shimmer{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+.pb-row{display:flex;justify-content:space-between;font-size:.78rem;color:var(--t3);margin-bottom:24px;}
+.pb-pct{font-weight:800;color:var(--p1);font-size:1.05rem;}
+/* stage list */
+.stage-list{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
+.stage-item{
+  display:flex;align-items:center;gap:12px;
+  padding:11px 14px;border-radius:10px;
+  background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);
+  transition:all var(--tr);
+}
+.stage-item.s-active{background:rgba(99,102,241,.1);border-color:rgba(99,102,241,.3);}
+.stage-item.s-done{background:rgba(16,185,129,.07);border-color:rgba(16,185,129,.2);}
+.s-dot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.12);flex-shrink:0;}
+.stage-item.s-active .s-dot{display:none;}
+.stage-item.s-done .s-dot{display:none;}
+.s-spin{
+  display:none;width:14px;height:14px;border:2px solid rgba(99,102,241,.3);
+  border-top-color:var(--p1);border-radius:50%;animation:spin1 .8s linear infinite;flex-shrink:0;
+}
+.stage-item.s-active .s-spin{display:block;}
+.s-chk{display:none;color:var(--ok);flex-shrink:0;font-size:.85rem;}
+.stage-item.s-done .s-chk{display:block;}
+.s-txt{font-size:.855rem;color:var(--t3);font-weight:500;flex:1;}
+.stage-item.s-active .s-txt{color:var(--t0);}
+.stage-item.s-done .s-txt{color:var(--ok);}
+.s-time{font-size:.75rem;color:var(--t3);}
+/* eta */
+.ov-eta{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 14px;background:rgba(99,102,241,.07);
+  border:1px solid rgba(99,102,241,.2);border-radius:8px;
+  font-size:.82rem;color:var(--t2);
+}
+.ov-eta i{color:var(--p1);}
+
+/* ═══════════════════════════════════════════════════
+   TOAST NOTIFICATIONS
+═══════════════════════════════════════════════════ */
+#toasts{position:fixed;top:20px;right:20px;z-index:10000;display:flex;flex-direction:column;gap:10px;}
+.toast{
+  display:flex;align-items:flex-start;gap:12px;
+  padding:14px 18px;
+  background:rgba(11,18,38,0.96);backdrop-filter:blur(20px);
+  border:1px solid var(--glass-b);border-radius:var(--r-md);
+  box-shadow:0 8px 32px rgba(0,0,0,.5);
+  max-width:360px;border-left:4px solid;
+  animation:tIn .4s var(--tr-sp);
+}
+.toast.t-ok{border-left-color:var(--ok);}
+.toast.t-err{border-left-color:var(--err);}
+.toast.t-warn{border-left-color:var(--warn);}
+.toast.t-info{border-left-color:var(--inf);}
+@keyframes tIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes tOut{from{transform:translateX(0);opacity:1;max-height:80px}to{transform:translateX(120%);opacity:0;max-height:0;padding:0;margin:0}}
+.toast.removing{animation:tOut .28s ease forwards;}
+.t-ico{font-size:1rem;flex-shrink:0;margin-top:1px;}
+.toast.t-ok .t-ico{color:var(--ok);}
+.toast.t-err .t-ico{color:var(--err);}
+.toast.t-warn .t-ico{color:var(--warn);}
+.toast.t-info .t-ico{color:var(--inf);}
+.t-body{flex:1;}
+.t-title{font-weight:700;font-size:.875rem;color:var(--t0);margin-bottom:2px;}
+.t-msg{font-size:.8rem;color:var(--t2);line-height:1.4;}
+.t-close{background:none;border:none;color:var(--t3);cursor:pointer;padding:0;font-size:.85rem;line-height:1;flex-shrink:0;}
+
+/* ═══════════════════════════════════════════════════
+   NAVBAR
+═══════════════════════════════════════════════════ */
+.nav{
+  position:sticky;top:0;z-index:500;
+  background:rgba(6,11,24,.88);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--glass-b);
+  height:62px;padding:0 32px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.nav-brand{display:flex;align-items:center;gap:12px;}
+.nav-logo{
+  width:36px;height:36px;border-radius:10px;
+  background:var(--pg);display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--glow);font-size:1rem;
+}
+.nav-name{font-size:1.05rem;font-weight:800;
+  background:linear-gradient(135deg,#fff 0%,#94A3B8 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.nav-tag{font-size:.68rem;color:var(--t3);font-weight:400;}
+.nav-right{display:flex;align-items:center;gap:14px;}
+.nav-pill{
+  display:flex;align-items:center;gap:7px;
+  padding:5px 13px;background:rgba(255,255,255,.05);
+  border:1px solid var(--glass-b);border-radius:20px;
+  font-size:.8rem;color:var(--t2);
+}
+.nav-pill .val{font-weight:700;color:var(--p1);}
+.live-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--ok);box-shadow:0 0 8px rgba(16,185,129,.6);
+  animation:ldot 2s infinite;
+}
+@keyframes ldot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.8)}}
+
+/* ═══════════════════════════════════════════════════
+   STEPPER
+═══════════════════════════════════════════════════ */
+.stepper-wrap{
+  padding:22px 40px 0;
+  background:rgba(6,11,24,.6);border-bottom:1px solid rgba(255,255,255,.04);
+}
+.stepper{
+  display:flex;align-items:flex-start;justify-content:space-between;
+  max-width:1200px;margin:0 auto;position:relative;
+}
+.st-track{
+  position:absolute;top:17px;
+  left:calc(100%/12); right:calc(100%/12);
+  height:2px;background:rgba(255,255,255,.06);z-index:0;
+}
+.st-prog{
+  height:100%;background:var(--pg);border-radius:2px;
+  transition:width .65s cubic-bezier(.4,0,.2,1);
+  box-shadow:0 0 10px rgba(99,102,241,.4);
+}
+.st-item{
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  position:relative;z-index:1;cursor:pointer;padding-bottom:18px;
+}
+.st-circle{
+  width:36px;height:36px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:.85rem;
+  border:2px solid rgba(255,255,255,.1);
+  background:rgba(255,255,255,.05);color:var(--t3);
+  transition:all var(--tr-s);position:relative;
+}
+.st-item.active .st-circle{
+  background:var(--pg);border-color:transparent;color:#fff;
+  box-shadow:var(--glow);
+}
+.st-item.done .st-circle{
+  background:var(--ok);border-color:transparent;color:#fff;
+  box-shadow:0 0 16px rgba(16,185,129,.35);
+}
+.st-item.active .st-circle::after{
+  content:'';position:absolute;inset:-5px;border-radius:50%;
+  border:2px solid rgba(99,102,241,.35);
+  animation:ring-pulse 2s infinite;
+}
+@keyframes ring-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0;transform:scale(1.35)}}
+.st-lbl{font-size:.7rem;font-weight:600;color:var(--t3);white-space:nowrap;transition:color var(--tr);}
+.st-item.active .st-lbl{color:var(--p1);}
+.st-item.done .st-lbl{color:var(--ok);}
+
+/* ═══════════════════════════════════════════════════
+   LAYOUT & CONTAINERS
+═══════════════════════════════════════════════════ */
+.main{max-width:1400px;margin:0 auto;padding:32px 36px;}
+.page{display:none;animation:pgIn .4s ease;}
+.page.active{display:block;}
+@keyframes pgIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.sec-eye{font-size:.72rem;font-weight:700;color:var(--p1);text-transform:uppercase;letter-spacing:2px;margin-bottom:5px;}
+.sec-title{font-size:2rem;font-weight:900;color:var(--t0);line-height:1.15;margin-bottom:6px;}
+.sec-desc{font-size:.9rem;color:var(--t2);line-height:1.65;}
+.sec-hd{margin-bottom:28px;}
+
+/* ═══════════════════════════════════════════════════
+   GLASS CARDS
+═══════════════════════════════════════════════════ */
+.gc{
+  background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid var(--glass-b);border-radius:var(--r-xl);
+  padding:28px;box-shadow:var(--glass-s);
+  transition:all var(--tr-s);
+}
+.gc:hover{border-color:rgba(255,255,255,.14);box-shadow:0 16px 48px rgba(0,0,0,.5);}
+.gc-title{
+  font-size:1.1rem;font-weight:700;color:var(--t0);
+  display:flex;align-items:center;gap:10px;margin-bottom:20px;
+}
+.gc-ico{
+  width:34px;height:34px;border-radius:9px;background:var(--pg);
+  display:flex;align-items:center;justify-content:center;font-size:.85rem;
+  box-shadow:var(--glow);
+}
+
+/* ═══════════════════════════════════════════════════
+   UPLOAD ZONE
+═══════════════════════════════════════════════════ */
+.upload-zone{
+  border:2px dashed rgba(99,102,241,.4);border-radius:var(--r-lg);
+  padding:56px 24px;text-align:center;cursor:pointer;
+  transition:all var(--tr-s);
+  background:rgba(99,102,241,.03);position:relative;overflow:hidden;
+}
+.upload-zone::before{
+  content:'';position:absolute;inset:0;background:var(--pg);opacity:0;transition:opacity var(--tr-s);
+}
+.upload-zone:hover,.upload-zone.drag{
+  border-color:var(--p1);
+  background:rgba(99,102,241,.09);
+  transform:scale(1.005);box-shadow:0 0 40px rgba(99,102,241,.15);
+}
+.upload-zone:hover::before{opacity:.03;}
+.uz-ico{
+  width:76px;height:76px;background:var(--pg);border-radius:22px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.9rem;margin:0 auto 18px;box-shadow:var(--glow);
+  transition:transform var(--tr-sp);position:relative;z-index:1;
+}
+.upload-zone:hover .uz-ico{transform:translateY(-6px) scale(1.06);}
+.uz-title{font-size:1.3rem;font-weight:800;color:var(--t0);margin-bottom:8px;position:relative;z-index:1;}
+.uz-sub{font-size:.875rem;color:var(--t2);margin-bottom:14px;position:relative;z-index:1;}
+.uz-badges{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;position:relative;z-index:1;}
+.fmt-b{
+  padding:4px 11px;border-radius:20px;font-size:.75rem;font-weight:600;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);color:var(--t2);
+}
+
+/* ═══════════════════════════════════════════════════
+   FILE CARDS
+═══════════════════════════════════════════════════ */
+.file-list-wrap{display:flex;flex-direction:column;gap:10px;margin-top:22px;}
+.file-card{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 18px;background:rgba(255,255,255,.04);
+  border:1px solid var(--glass-b);border-radius:var(--r-md);
+  transition:all var(--tr);animation:fcIn .28s ease;
+}
+@keyframes fcIn{from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:translateX(0)}}
+.file-card:hover{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.14);}
+.fi{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:1.25rem;flex-shrink:0;}
+.fi-pdf{background:rgba(239,68,68,.15);color:#EF4444;}
+.fi-xls{background:rgba(16,185,129,.15);color:#10B981;}
+.fi-img{background:rgba(59,130,246,.15);color:#3B82F6;}
+.fi-doc{background:rgba(99,102,241,.15);color:#6366F1;}
+.fi-txt{background:rgba(245,158,11,.15);color:#F59E0B;}
+.fc-info{flex:1;min-width:0;}
+.fc-name{font-weight:600;font-size:.9rem;color:var(--t0);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fc-meta{font-size:.775rem;color:var(--t3);margin-top:2px;}
+.fc-badge{
+  padding:4px 11px;border-radius:20px;font-size:.75rem;font-weight:700;flex-shrink:0;
+}
+.b-ready{background:rgba(16,185,129,.12);color:var(--ok);border:1px solid rgba(16,185,129,.25);}
+.b-proc{background:rgba(245,158,11,.12);color:var(--warn);border:1px solid rgba(245,158,11,.25);}
+.b-done{background:rgba(99,102,241,.12);color:var(--p1);border:1px solid rgba(99,102,241,.25);}
+.b-err{background:rgba(239,68,68,.12);color:var(--err);border:1px solid rgba(239,68,68,.25);}
+.fc-rm{
+  width:30px;height:30px;border-radius:8px;background:transparent;border:none;
+  color:var(--t3);cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all var(--tr);flex-shrink:0;
+}
+.fc-rm:hover{background:rgba(239,68,68,.14);color:var(--err);}
+
+/* ═══════════════════════════════════════════════════
+   BUTTONS
+═══════════════════════════════════════════════════ */
+.btn{
+  display:inline-flex;align-items:center;gap:9px;
+  padding:13px 26px;border-radius:var(--r-md);
+  font-size:.9rem;font-weight:700;cursor:pointer;border:none;
+  transition:all var(--tr-s);font-family:inherit;position:relative;overflow:hidden;
+}
+.btn::after{content:'';position:absolute;inset:0;background:rgba(255,255,255,.1);opacity:0;transition:opacity var(--tr);}
+.btn:hover::after{opacity:1;}
+.btn-p{background:var(--pg);color:#fff;box-shadow:0 4px 20px rgba(99,102,241,.35);}
+.btn-p:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(99,102,241,.45);}
+.btn-ok{background:linear-gradient(135deg,#10B981,#059669);color:#fff;box-shadow:0 4px 18px rgba(16,185,129,.3);}
+.btn-ok:hover{transform:translateY(-2px);box-shadow:0 8px 26px rgba(16,185,129,.4);}
+.btn-g{background:rgba(255,255,255,.07);color:var(--t2);border:1px solid var(--glass-b);}
+.btn-g:hover{background:rgba(255,255,255,.12);color:var(--t0);}
+.btn-lg{padding:15px 34px;font-size:.95rem;}
+.btn:disabled{opacity:.38;cursor:not-allowed;transform:none!important;box-shadow:none!important;}
+
+/* ═══════════════════════════════════════════════════
+   EXTRACTION MODE SELECTOR
+═══════════════════════════════════════════════════ */
+.mode-row{display:flex;gap:11px;flex-wrap:wrap;}
+.mode-opt{
+  flex:1;min-width:150px;padding:14px 16px;
+  border:2px solid rgba(255,255,255,.07);border-radius:var(--r-md);
+  cursor:pointer;transition:all var(--tr);
+  display:flex;align-items:center;gap:11px;
+  background:rgba(255,255,255,.03);
+}
+.mode-opt:hover{border-color:rgba(99,102,241,.4);background:rgba(99,102,241,.07);}
+.mode-opt.sel{border-color:var(--p1);background:rgba(99,102,241,.12);box-shadow:0 0 22px rgba(99,102,241,.12);}
+.mode-opt input{display:none;}
+.m-ico{
+  width:36px;height:36px;border-radius:9px;
+  background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;
+  font-size:1rem;flex-shrink:0;transition:all var(--tr);
+}
+.mode-opt.sel .m-ico{background:var(--pg);color:#fff;}
+.m-lbl{font-size:.84rem;font-weight:700;color:var(--t2);}
+.m-desc{font-size:.72rem;color:var(--t3);margin-top:2px;}
+.mode-opt.sel .m-lbl{color:var(--t0);}
+#api-row{display:none;gap:10px;margin-top:14px;}
+.api-in{
+  flex:1;padding:11px 15px;background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.09);border-radius:var(--r-sm);
+  color:var(--t0);font-family:'Courier New',monospace;font-size:.85rem;
+}
+.api-in:focus{outline:none;border-color:var(--p1);}
+
+/* ═══════════════════════════════════════════════════
+   ACTIVITY LOG
+═══════════════════════════════════════════════════ */
+.log-box{
+  background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.05);
+  border-radius:var(--r-md);padding:14px;
+  height:180px;overflow-y:auto;
+  font-family:'Courier New',monospace;font-size:.75rem;
+}
+.log-e{display:flex;gap:9px;margin-bottom:5px;animation:lgIn .2s ease;}
+@keyframes lgIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.l-t{color:#374151;flex-shrink:0;}
+.l-ok{color:var(--ok);}.l-err{color:var(--err);}.l-warn{color:var(--warn);}.l-inf{color:var(--t2);}
+
+/* ═══════════════════════════════════════════════════
+   VERIFY PAGE — FORM
+═══════════════════════════════════════════════════ */
+.verify-layout{display:grid;grid-template-columns:1.45fr 1fr;gap:24px;}
+.s-div{
+  font-size:.72rem;font-weight:800;color:var(--t3);
+  text-transform:uppercase;letter-spacing:1.5px;
+  margin:20px 0 13px;display:flex;align-items:center;gap:9px;
+}
+.s-div i{color:var(--p1);}
+.s-div::after{content:'';flex:1;height:1px;background:rgba(255,255,255,.06);}
+.fg{display:flex;flex-direction:column;gap:5px;}
+.fl{font-size:.75rem;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.4px;display:flex;align-items:center;gap:6px;}
+.fc{
+  padding:11px 13px;background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.09);border-radius:var(--r-sm);
+  color:var(--t0);font-size:.88rem;font-family:inherit;
+  transition:all var(--tr);
+}
+.fc:focus{outline:none;border-color:var(--p1);background:rgba(99,102,241,.09);box-shadow:0 0 0 3px rgba(99,102,241,.14);}
+.fc.ext{
+  border-color:rgba(16,185,129,.55);background:rgba(16,185,129,.07);
+  animation:extGlow 1.6s ease-out;
+}
+@keyframes extGlow{0%{box-shadow:0 0 0 5px rgba(16,185,129,.45)}100%{box-shadow:none}}
+.ai-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  background:rgba(16,185,129,.13);color:var(--ok);
+  padding:2px 7px;border-radius:10px;font-size:.66rem;font-weight:800;
+  border:1px solid rgba(16,185,129,.25);animation:bPop .3s var(--tr-sp);
+}
+@keyframes bPop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.fr3{grid-template-columns:1fr 1fr 1fr;}
+.fr4{grid-template-columns:1fr 1fr 1fr 1fr;}
+select.fc option{background:#101830;color:#fff;}
+
+/* ═══════════════════════════════════════════════════
+   DOC PREVIEW PANEL
+═══════════════════════════════════════════════════ */
+.doc-panel{
+  background:rgba(255,255,255,.03);border:1px solid var(--glass-b);
+  border-radius:var(--r-lg);padding:18px;position:sticky;top:90px;
+}
+.dp-title{font-size:.75rem;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;}
+.dp-thumb{
+  display:flex;align-items:center;gap:11px;
+  padding:11px 14px;background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.07);border-radius:9px;
+  margin-bottom:8px;cursor:pointer;transition:all var(--tr);
+}
+.dp-thumb:hover{background:rgba(255,255,255,.08);border-color:rgba(99,102,241,.3);}
+.dp-thumb.active{background:rgba(99,102,241,.1);border-color:rgba(99,102,241,.4);}
+.dp-num{
+  width:26px;height:26px;background:var(--pg);border-radius:6px;
+  display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:800;flex-shrink:0;
+}
+.dp-inf{flex:1;min-width:0;}
+.dp-n{font-size:.8rem;font-weight:700;color:var(--t0);}
+.dp-c{font-size:.72rem;color:var(--t3);}
+
+/* ═══════════════════════════════════════════════════
+   RESULTS PAGE — KPI CARDS
+═══════════════════════════════════════════════════ */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:22px;}
+.kpi-c{
+  background:var(--glass);border:1px solid var(--glass-b);border-radius:var(--r-lg);
+  padding:20px;transition:all var(--tr-s);position:relative;overflow:hidden;
+}
+.kpi-c::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:var(--pg);border-radius:3px 3px 0 0;
+}
+.kpi-c:hover{transform:translateY(-4px);box-shadow:0 14px 36px rgba(0,0,0,.35);border-color:rgba(255,255,255,.14);}
+.kpi-lbl{font-size:.72rem;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;}
+.kpi-val{font-size:1.75rem;font-weight:900;color:var(--t0);line-height:1;margin-bottom:5px;}
+.kpi-st{font-size:.75rem;font-weight:600;display:flex;align-items:center;gap:4px;}
+.kpi-st.ok{color:var(--ok);}.kpi-st.warn{color:var(--warn);}.kpi-st.bad{color:var(--err);}
+
+/* score ring */
+.score-card{
+  background:linear-gradient(135deg,rgba(99,102,241,.14),rgba(139,92,246,.09));
+  border:1px solid rgba(99,102,241,.28);border-radius:var(--r-xl);padding:36px;text-align:center;
+}
+.score-lbl{font-size:.78rem;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;}
+.score-num{
+  font-size:4.5rem;font-weight:900;line-height:1;
+  background:var(--pg);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:4px;
+}
+.score-max{font-size:.9rem;color:var(--t3);margin-bottom:16px;}
+.risk-badge{display:inline-block;padding:5px 18px;border-radius:20px;font-size:.82rem;font-weight:800;}
+
+/* recommendation */
+.rec-c{border-radius:var(--r-xl);padding:28px;border:1px solid;}
+.rec-c.ra{background:rgba(16,185,129,.08);border-color:rgba(16,185,129,.28);}
+.rec-c.rr{background:rgba(245,158,11,.08);border-color:rgba(245,158,11,.28);}
+.rec-c.rd{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.28);}
+.rec-ico{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin-bottom:14px;}
+.ra .rec-ico{background:rgba(16,185,129,.18);color:var(--ok);}
+.rr .rec-ico{background:rgba(245,158,11,.18);color:var(--warn);}
+.rd .rec-ico{background:rgba(239,68,68,.18);color:var(--err);}
+.rec-tag{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:7px;}
+.ra .rec-tag{color:var(--ok);}.rr .rec-tag{color:var(--warn);}.rd .rec-tag{color:var(--err);}
+.rec-h{font-size:1.3rem;font-weight:800;color:var(--t0);margin-bottom:10px;}
+.rec-p{font-size:.875rem;color:var(--t2);line-height:1.65;}
+
+/* ratio grid */
+.ratio-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;}
+.ratio-c{
+  background:var(--glass);border:1px solid var(--glass-b);border-radius:var(--r-lg);
+  padding:18px;transition:all var(--tr-s);
+}
+.ratio-c:hover{transform:translateY(-3px);box-shadow:0 12px 30px rgba(0,0,0,.3);}
+.rn{font-size:.7rem;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;}
+.rv{font-size:2rem;font-weight:900;margin-bottom:3px;}
+.rv.ok{color:var(--ok);}.rv.warn{color:var(--warn);}.rv.bad{color:var(--err);}
+.rb-track{height:5px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden;margin:8px 0 6px;}
+.rb-fill{height:100%;border-radius:4px;transition:width 1s cubic-bezier(.4,0,.2,1);}
+.rb-fill.ok{background:var(--ok);}.rb-fill.warn{background:var(--warn);}.rb-fill.bad{background:var(--err);}
+.rbm{font-size:.72rem;color:var(--t3);}
+
+/* chart */
+.chart-c{background:var(--glass);border:1px solid var(--glass-b);border-radius:var(--r-lg);padding:22px;}
+.ch-title{font-size:.875rem;font-weight:700;color:var(--t0);margin-bottom:18px;display:flex;align-items:center;gap:8px;}
+.ch-wrap{height:270px;position:relative;}
+
+/* success banner */
+.s-banner{
+  background:linear-gradient(135deg,rgba(16,185,129,.11),rgba(16,185,129,.04));
+  border:1px solid rgba(16,185,129,.28);border-radius:var(--r-xl);
+  padding:28px;text-align:center;margin-bottom:24px;
+}
+.s-banner-ico{
+  width:64px;height:64px;background:rgba(16,185,129,.15);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.8rem;color:var(--ok);margin:0 auto 14px;
+}
+
+/* report cards */
+.report-row{display:flex;gap:14px;flex-wrap:wrap;margin-top:22px;}
+.rpt-c{
+  flex:1;min-width:180px;background:var(--glass);
+  border:1px solid var(--glass-b);border-radius:var(--r-lg);
+  padding:22px;text-align:center;cursor:pointer;transition:all var(--tr-s);
+}
+.rpt-c:hover{transform:translateY(-4px);border-color:var(--p1);box-shadow:0 12px 30px rgba(99,102,241,.2);}
+.rpt-ico{font-size:2.4rem;margin-bottom:10px;}
+.rpt-t{font-weight:800;font-size:.9rem;color:var(--t0);}
+.rpt-d{font-size:.75rem;color:var(--t3);margin-top:4px;}
+
+/* extraction summary */
+.ext-banner{
+  display:none;align-items:center;gap:14px;
+  padding:14px 20px;background:rgba(16,185,129,.09);
+  border:1px solid rgba(16,185,129,.27);border-radius:14px;margin-bottom:22px;
+}
+.ext-banner.show{display:flex;}
+.ext-banner-ico{
+  width:38px;height:38px;background:rgba(16,185,129,.18);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;color:var(--ok);font-size:1.1rem;flex-shrink:0;
+}
+.ext-tag{
+  margin-left:auto;padding:5px 14px;background:rgba(16,185,129,.14);
+  border:1px solid rgba(16,185,129,.28);border-radius:20px;
+  font-size:.78rem;font-weight:800;color:var(--ok);flex-shrink:0;
+}
+
+/* misc */
+.divider{height:1px;background:rgba(255,255,255,.06);margin:20px 0;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;}
+.mt16{margin-top:16px;}.mt22{margin-top:22px;}.mt28{margin-top:28px;}
+.flex-end{display:flex;justify-content:flex-end;gap:10px;}
+.flex-c{display:flex;align-items:center;gap:10px;}
+
+@media(max-width:1100px){.verify-layout{grid-template-columns:1fr;}}
+@media(max-width:900px){
+  .main{padding:20px 16px;}
+  .g2,.g3{grid-template-columns:1fr;}
+  .fr,.fr3,.fr4{grid-template-columns:1fr;}
+  .stepper-wrap{padding:16px 20px 0;}
+  .st-track,.st-lbl{display:none;}
+  .kpi-grid{grid-template-columns:1fr 1fr;}
+  .ratio-grid{grid-template-columns:1fr 1fr;}
+}
+@media(max-width:480px){
+  .kpi-grid,.ratio-grid{grid-template-columns:1fr;}
+  .nav{padding:0 16px;}
+  .ov-panel{padding:32px 20px;}
+}
+
+/* ═══════════════════════════════════════════════════
+   FINANCIAL REVIEW TABLES & TABS (NEW)
+═══════════════════════════════════════════════════ */
+.fin-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.fin-table th {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--t1);
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: left;
+}
+.fin-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: var(--t2);
+  font-size: 0.85rem;
+}
+.fin-table tr:last-child td {
+  border-bottom: none;
+}
+.fin-table tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--t0);
+}
+.fin-table td.num {
+  text-align: right;
+  font-family: monospace;
+}
+.fin-table th.num {
+  text-align: right;
+}
+.fin-table td.label-cell {
+  font-weight: 600;
+  color: var(--t1);
+}
+
+.tab-container {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 10px;
+  flex-wrap: wrap;
+}
+.tab-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--r-sm);
+  color: var(--t2);
+  padding: 8px 16px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--tr);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tab-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--t0);
+}
+.tab-btn.active {
+  background: var(--pg);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: var(--glow);
+}
+.tab-content {
+  display: none;
+  animation: pgIn .3s ease;
+}
+.tab-content.active {
+  display: block;
+}
+
+.trend-card {
+  padding: 18px;
+  border-radius: var(--r-md);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  transition: all var(--tr);
+}
+.trend-card.improving {
+  border-color: rgba(16, 185, 129, 0.25);
+  background: rgba(16, 185, 129, 0.04);
+}
+.trend-card.declining {
+  border-color: rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.04);
+}
+.trend-card.warning {
+  border-color: rgba(245, 158, 11, 0.25);
+  background: rgba(245, 158, 11, 0.04);
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ PROCESSING OVERLAY ═══════════ -->
+<div id="overlay">
+  <div class="ov-panel">
+    <div class="ov-rings">
+      <div class="ring1"></div>
+      <div class="ring2"></div>
+      <div class="ring-icon"><i id="ovIcon" class="fas fa-brain"></i></div>
+    </div>
+    <div class="ov-title" id="ovTitle">Processing</div>
+    <div class="ov-desc" id="ovDesc">Please wait while we process your request...</div>
+    <div class="pb-track"><div class="pb-fill" id="pbFill" style="width:0%"></div></div>
+    <div class="pb-row">
+      <span id="pbLbl">Initializing...</span>
+      <span class="pb-pct" id="pbPct">0%</span>
+    </div>
+    <div class="stage-list" id="stageList"></div>
+    <div class="ov-eta"><i class="fas fa-clock"></i><span id="etaTxt">Calculating...</span></div>
+  </div>
+</div>
+
+<!-- ═══════════ TOASTS ═══════════ -->
+<div id="toasts"></div>
+
+<!-- ═══════════ NAVBAR ═══════════ -->
+<nav class="nav">
+  <div class="nav-brand">
+    <div class="nav-logo"><i class="fas fa-brain"></i></div>
+    <div>
+      <div class="nav-name">AI CREDIT INTELLIGENCE</div>
+      <div class="nav-tag">Banking Risk Analysis Platform v4.0</div>
+    </div>
+  </div>
+  <div class="nav-right">
+    <div class="nav-pill"><i class="fas fa-file-alt" style="color:var(--p1);font-size:.8rem;"></i> Docs: <span class="val" id="navDocs">0</span></div>
+    <div class="nav-pill"><i class="fas fa-star" style="color:var(--warn);font-size:.8rem;"></i> Score: <span class="val" id="navScore">—</span>/100</div>
+    <div class="nav-pill"><div class="live-dot"></div>System Ready</div>
+  </div>
+</nav>
+
+<!-- ═══════════ STEPPER ═══════════ -->
+<div class="stepper-wrap">
+  <div class="stepper" id="stepper">
+    <div class="st-track"><div class="st-prog" id="stProg"></div></div>
+    <div class="st-item active" id="st0" onclick="tryStep(0)">
+      <div class="st-circle"><i class="fas fa-cloud-upload-alt"></i></div>
+      <div class="st-lbl">Upload</div>
+    </div>
+    <div class="st-item" id="st1" onclick="tryStep(1)">
+      <div class="st-circle">2</div>
+      <div class="st-lbl">Extract Data</div>
+    </div>
+    <div class="st-item" id="st2" onclick="tryStep(2)">
+      <div class="st-circle">3</div>
+      <div class="st-lbl">Verify</div>
+    </div>
+    <div class="st-item" id="st3" onclick="tryStep(3)">
+      <div class="st-circle">4</div>
+      <div class="st-lbl">Financials</div>
+    </div>
+    <div class="st-item" id="st4" onclick="tryStep(4)">
+      <div class="st-circle">5</div>
+      <div class="st-lbl">Ratios</div>
+    </div>
+    <div class="st-item" id="st5" onclick="tryStep(5)">
+      <div class="st-circle">6</div>
+      <div class="st-lbl">Analyze</div>
+    </div>
+    <div class="st-item" id="st6" onclick="tryStep(6)">
+      <div class="st-circle">7</div>
+      <div class="st-lbl">Results</div>
+    </div>
+    <div class="st-item" id="st7" onclick="tryStep(7)">
+      <div class="st-circle">8</div>
+      <div class="st-lbl">Download</div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 0 — UPLOAD
+═══════════════════════════════════════════════════ -->
+<div class="page active" id="p0">
+  <div class="sec-hd">
+    <div class="sec-eye">Step 1 of 8 — Document Upload</div>
+    <div class="sec-title">Upload Financial Documents</div>
+    <div class="sec-desc">Upload bank statements, P&amp;L, balance sheets, GST returns, ITR, or any financial document for AI-powered credit analysis.</div>
+  </div>
+
+  <div class="g2" style="align-items:start;gap:28px;">
+    <!-- LEFT: Upload zone -->
+    <div style="display:flex;flex-direction:column;gap:20px;">
+      <div class="gc" style="padding:26px;">
+        <input type="file" id="fileInput" multiple accept=".pdf,.xlsx,.xls,.csv,.docx,.doc,.txt,.png,.jpg,.jpeg" style="display:none;" onchange="onFileSelect(event)">
+        <label class="upload-zone" id="uz" for="fileInput"
+          ondrop="onDrop(event)" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)"
+          style="display:block;cursor:pointer;">
+          <div class="uz-ico"><i class="fas fa-file-arrow-up"></i></div>
+          <div class="uz-title">Drag &amp; Drop Documents</div>
+          <div class="uz-sub">or click to browse from your computer</div>
+          <div class="uz-badges">
+            <span class="fmt-b">📄 PDF</span>
+            <span class="fmt-b">📊 Excel</span>
+            <span class="fmt-b">🖼️ Images</span>
+            <span class="fmt-b">📝 Word</span>
+            <span class="fmt-b">📋 CSV</span>
+            <span class="fmt-b">🔖 Text</span>
+          </div>
+        </label>
+
+        <div id="fileList"></div>
+
+        <div style="margin-top:22px;display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-p btn-lg" id="btnExtract" onclick="startExtract()" disabled>
+            <i class="fas fa-magic"></i> Extract Data
+          </button>
+          <button class="btn btn-g" onclick="clearAll()">
+            <i class="fas fa-trash-alt"></i> Clear All
+          </button>
+        </div>
+      </div>
+
+      <!-- Extraction mode -->
+      <div class="gc" style="padding:22px;">
+        <div class="gc-title" style="margin-bottom:14px;font-size:1rem;">
+          <div class="gc-ico" style="width:30px;height:30px;font-size:.8rem;"><i class="fas fa-microchip"></i></div>
+          Extraction Engine
+        </div>
+        <div class="mode-row" id="modeRow">
+          <label class="mode-opt" onclick="setMode('vision',this)">
+            <input type="radio" name="mode" value="vision">
+            <div class="m-ico"><i class="fas fa-eye"></i></div>
+            <div>
+              <div class="m-lbl">Google Vision OCR</div>
+              <div class="m-desc">Cloud AI — Recommended</div>
+            </div>
+          </label>
+          <label class="mode-opt" onclick="setMode('backend',this)">
+            <input type="radio" name="mode" value="backend">
+            <div class="m-ico"><i class="fas fa-server"></i></div>
+            <div>
+              <div class="m-lbl">Python Backend</div>
+              <div class="m-desc">Local OCR — Free</div>
+            </div>
+          </label>
+          <label class="mode-opt sel" onclick="setMode('local',this)">
+            <input type="radio" name="mode" value="local" checked>
+            <div class="m-ico"><i class="fas fa-shield-alt"></i></div>
+            <div>
+              <div class="m-lbl">Client-Side Reader</div>
+              <div class="m-desc">Free extraction (No server/billing)</div>
+            </div>
+          </label>
+        </div>
+        <div id="api-row">
+          <input type="text" class="api-in" id="apiUrl" value="http://localhost:5000/api/extract" placeholder="Backend endpoint URL">
+          <button class="btn btn-g" onclick="pingBackend()" style="padding:11px 16px;font-size:.82rem;white-space:nowrap;">
+            <i class="fas fa-plug"></i> Test
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Info + log -->
+    <div style="display:flex;flex-direction:column;gap:18px;">
+      <div class="gc" style="padding:22px;">
+        <div class="gc-title" style="font-size:1rem;margin-bottom:14px;">
+          <div class="gc-ico" style="width:30px;height:30px;font-size:.8rem;background:linear-gradient(135deg,#10B981,#059669);"><i class="fas fa-list-check"></i></div>
+          Supported Documents
+        </div>
+        <div style="display:flex;flex-direction:column;gap:9px;">
+          <div class="flex-c" style="font-size:.86rem;color:var(--t2);"><i class="fas fa-check-circle" style="color:var(--ok);"></i> Bank Statements (12-36 months)</div>
+          <div class="flex-c" style="font-size:.86rem;color:var(--t2);"><i class="fas fa-check-circle" style="color:var(--ok);"></i> Profit &amp; Loss Statements</div>
+          <div class="flex-c" style="font-size:.86rem;color:var(--t2);"><i class="fas fa-check-circle" style="color:var(--ok);"></i> Balance Sheets (2-3 years)</div>
+          <div class="flex-c" style="font-size:.86rem;color:var(--t2);"><i class="fas fa-check-circle" style="color:var(--ok);"></i> GST Returns (GSTR-1, GSTR-3B)</div>
+          <div class="flex-c" style="font-size:.86rem;color:var(--t2);"><i class="fas fa-check-circle" style="color:var(--ok);"></i> Income Tax Returns (ITR)</div>
+          <div class="flex-c" style="font-size:.86rem;color:var(--t2);"><i class="fas fa-check-circle" style="color:var(--ok);"></i> Cash Flow Statements</div>
+          <div class="flex-c" style="font-size:.86rem;color:var(--t2);"><i class="fas fa-check-circle" style="color:var(--ok);"></i> Scanned &amp; Digital PDFs</div>
+        </div>
+      </div>
+
+      <div class="gc" style="padding:22px;">
+        <div class="gc-title" style="font-size:.92rem;margin-bottom:10px;">
+          <i class="fas fa-terminal" style="color:var(--p1);"></i> Activity Log
+        </div>
+        <div class="log-box" id="logBox">
+          <div class="log-e"><span class="l-t">[INIT]</span><span class="l-inf"> Platform ready. Upload documents to begin.</span></div>
+        </div>
+      </div>
+
+      <div class="gc" style="padding:20px;">
+        <div class="gc-title" style="font-size:.95rem;margin-bottom:12px;">
+          <div class="gc-ico" style="width:30px;height:30px;font-size:.8rem;background:linear-gradient(135deg,#F59E0B,#D97706);"><i class="fas fa-lock"></i></div>
+          Privacy &amp; Security
+        </div>
+        <div style="font-size:.83rem;color:var(--t2);line-height:1.7;">
+          <p>✓ Encrypted document transfer</p>
+          <p>✓ No data stored after session</p>
+          <p>✓ Isolated processing environment</p>
+          <p>✓ Banking-grade compliance</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 1 — VERIFY EXTRACTED DATA
+═══════════════════════════════════════════════════ -->
+<div class="page" id="p1">
+  <div class="sec-hd">
+    <div class="sec-eye">Step 3 of 8 — Verify Extracted Data</div>
+    <div class="sec-title">Review AI-Extracted Data</div>
+    <div class="sec-desc">Green-highlighted fields were auto-populated by AI. Correct any values if needed, then click "Run Analysis".</div>
+  </div>
+
+  <div class="ext-banner" id="extBanner">
+    <div class="ext-banner-ico"><i class="fas fa-robot"></i></div>
+    <div>
+      <div style="font-weight:800;color:var(--t0);" id="extBanTitle">Extraction Successful</div>
+      <div style="font-size:.84rem;color:var(--t2);" id="extBanDesc">Review the populated fields below.</div>
+    </div>
+    <span class="ext-tag" id="extFieldCount">0 fields</span>
+  </div>
+
+  <div class="verify-layout">
+    <!-- FORM -->
+    <div class="gc" style="padding:26px;">
+      <div class="s-div"><i class="fas fa-building"></i> Company Profile</div>
+      <div class="fr">
+        <div class="fg"><label class="fl" id="lb-businessType">Business Type</label>
+          <select class="fc" id="inputBusinessType">
+            <option>Sole Proprietorship</option><option>Partnership</option>
+            <option>LLP</option><option>Private Limited</option><option>Public Limited</option>
+          </select></div>
+        <div class="fg"><label class="fl" id="lb-natureOfBusiness">Nature of Business</label>
+          <select class="fc" id="inputNatureOfBusiness">
+            <option>Retail</option><option>Manufacturing</option><option>Trading</option>
+            <option>IT Services</option><option>Healthcare</option><option>Construction</option>
+          </select></div>
+      </div>
+
+      <div class="s-div"><i class="fas fa-chart-line"></i> Loan Parameters</div>
+      <div class="fr3">
+        <div class="fg"><label class="fl" id="lb-cibil">CIBIL Score</label><input type="number" class="fc" id="inputCibil" value="" min="300" max="900"></div>
+        <div class="fg"><label class="fl" id="lb-proposedLoan">Proposed Loan (₹)</label><input type="number" class="fc" id="inputProposedLoan" value=""></div>
+        <div class="fg"><label class="fl" id="lb-proposedEMI">Proposed EMI (₹)</label><input type="number" class="fc" id="inputProposedEMI" value=""></div>
+      </div>
+      <div class="fr">
+        <div class="fg"><label class="fl" id="lb-monthlyIncome">Monthly Income (₹)</label><input type="number" class="fc" id="inputMonthlyIncome" value=""></div>
+        <div class="fg"><label class="fl" id="lb-existingEMI">Existing EMI (₹)</label><input type="number" class="fc" id="inputExistingEMI" value=""></div>
+      </div>
+
+      <div class="s-div"><i class="fas fa-balance-scale"></i> Balance Sheet</div>
+      <div class="fr3">
+        <div class="fg"><label class="fl" id="lb-currentAssets">Current Assets (₹)</label><input type="number" class="fc" id="inputCurrentAssets" value=""></div>
+        <div class="fg"><label class="fl" id="lb-inventory">Inventory (₹)</label><input type="number" class="fc" id="inputInventory" value=""></div>
+        <div class="fg"><label class="fl" id="lb-fixedAssets">Fixed Assets (₹)</label><input type="number" class="fc" id="inputFixedAssets" value=""></div>
+      </div>
+      <div class="fr3">
+        <div class="fg"><label class="fl" id="lb-currentLiabilities">Current Liabilities (₹)</label><input type="number" class="fc" id="inputCurrentLiabilities" value=""></div>
+        <div class="fg"><label class="fl" id="lb-longTermDebt">Long-Term Debt (₹)</label><input type="number" class="fc" id="inputLongTermDebt" value=""></div>
+        <div class="fg"><label class="fl" id="lb-equity">Equity / Net Worth (₹)</label><input type="number" class="fc" id="inputEquity" value=""></div>
+      </div>
+
+      <div class="s-div" style="color:var(--p1);"><i class="fas fa-file-invoice-dollar"></i> P&amp;L — Year 1 (Oldest)</div>
+      <div class="fr4" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div class="fg"><label class="fl" id="lb-Y1Revenue">Revenue Y1</label><input type="number" class="fc" id="inputY1Revenue" value=""></div>
+        <div class="fg"><label class="fl" id="lb-Y1NetProfit">Net Profit Y1</label><input type="number" class="fc" id="inputY1NetProfit" value=""></div>
+        <div class="fg"><label class="fl" id="lb-Y1Ebitda">EBITDA Y1</label><input type="number" class="fc" id="inputY1Ebitda" value=""></div>
+        <div class="fg"><label class="fl" id="lb-Y1Ocf">Op. CF Y1</label><input type="number" class="fc" id="inputY1Ocf" value=""></div>
+      </div>
+
+      <div class="s-div" style="color:var(--p2);"><i class="fas fa-file-invoice-dollar"></i> P&amp;L — Year 2</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div class="fg"><label class="fl">Revenue Y2</label><input type="number" class="fc" id="inputY2Revenue" value=""></div>
+        <div class="fg"><label class="fl">Net Profit Y2</label><input type="number" class="fc" id="inputY2NetProfit" value=""></div>
+        <div class="fg"><label class="fl">EBITDA Y2</label><input type="number" class="fc" id="inputY2Ebitda" value=""></div>
+        <div class="fg"><label class="fl">Op. CF Y2</label><input type="number" class="fc" id="inputY2Ocf" value=""></div>
+      </div>
+
+      <div class="s-div" style="color:#22D3EE;"><i class="fas fa-file-invoice-dollar"></i> P&amp;L — Year 3 (Latest)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:20px;">
+        <div class="fg"><label class="fl">Revenue Y3</label><input type="number" class="fc" id="inputY3Revenue" value=""></div>
+        <div class="fg"><label class="fl">Net Profit Y3</label><input type="number" class="fc" id="inputY3NetProfit" value=""></div>
+        <div class="fg"><label class="fl">EBITDA Y3</label><input type="number" class="fc" id="inputY3Ebitda" value=""></div>
+        <div class="fg"><label class="fl">Op. CF Y3</label><input type="number" class="fc" id="inputY3Ocf" value=""></div>
+      </div>
+
+      <div class="divider"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn btn-g" onclick="goPage(0)"><i class="fas fa-arrow-left"></i> Back</button>
+        <button class="btn btn-p" onclick="goFinancials()"><i class="fas fa-arrow-right"></i> Next: Financial Review</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: Doc pages + raw text -->
+    <div>
+      <div class="doc-panel">
+        <div class="dp-title"><i class="fas fa-file-alt" style="color:var(--p1);"></i> Extracted Document Pages</div>
+        <div id="dpList">
+          <div style="text-align:center;padding:28px;color:var(--t3);font-size:.85rem;">
+            <i class="fas fa-file-circle-question" style="font-size:2rem;margin-bottom:8px;display:block;"></i>
+            No pages extracted yet.
+          </div>
+        </div>
+      </div>
+      <div class="gc mt16" style="padding:18px;">
+        <div style="font-size:.72rem;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">
+          Raw Text Preview
+        </div>
+        <textarea id="rawPrev" readonly
+          style="width:100%;height:170px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:12px;color:var(--t2);font-family:monospace;font-size:.72rem;resize:none;outline:none;">No extraction yet. Upload and extract first.</textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 4 — FINANCIAL STATEMENTS REVIEW (NEW)
+═══════════════════════════════════════════════════ -->
+<div class="page" id="p4">
+  <div class="sec-hd">
+    <div class="sec-eye">Step 4 of 8 — Financial Review</div>
+    <div class="sec-title">Financial Statements &amp; Cash Flow Trends</div>
+    <div class="sec-desc">Review Profit &amp; Loss, Balance Sheet, and Cash Flow statements individually. Trends in cash flow are highlighted below.</div>
+  </div>
+
+  <!-- Key Metrics Pill Grid -->
+  <div class="kpi-grid" style="margin-bottom: 22px;">
+    <div class="kpi-c">
+      <div class="kpi-lbl">Revenue Y3 (Latest)</div>
+      <div class="kpi-val" id="finRevY3">₹0.00L</div>
+      <div class="kpi-st ok" id="finRevGrowth"><i class="fas fa-arrow-up"></i> 0.0% YoY</div>
+    </div>
+    <div class="kpi-c">
+      <div class="kpi-lbl">Net Profit Margin Y3</div>
+      <div class="kpi-val" id="finNPMY3">0.0%</div>
+      <div class="kpi-st ok" id="finNPMAvg"><i class="fas fa-minus"></i> 0.0% Avg</div>
+    </div>
+    <div class="kpi-c">
+      <div class="kpi-lbl">Current Ratio</div>
+      <div class="kpi-val" id="finCRY3">0.00x</div>
+      <div class="kpi-st ok" id="finCRStatus"><i class="fas fa-check-circle"></i> Good</div>
+    </div>
+    <div class="kpi-c">
+      <div class="kpi-lbl">Operating Cash Flow Trend</div>
+      <div class="kpi-val" id="finCFTrendVal">—</div>
+      <div class="kpi-st ok" id="finCFTrendBadge"><i class="fas fa-arrow-up"></i> Stable</div>
+    </div>
+  </div>
+
+  <!-- Tabbed Statements -->
+  <div class="gc" style="padding:26px; margin-bottom:22px;">
+    <div class="tab-container">
+      <button class="tab-btn active" onclick="switchFinTab('pl-tab', this)">
+        <i class="fas fa-file-invoice-dollar"></i> Profit &amp; Loss
+      </button>
+      <button class="tab-btn" onclick="switchFinTab('bs-tab', this)">
+        <i class="fas fa-balance-scale"></i> Balance Sheet
+      </button>
+      <button class="tab-btn" onclick="switchFinTab('cf-tab', this)">
+        <i class="fas fa-chart-line"></i> Cash Flow &amp; Trends
+      </button>
+    </div>
+
+    <!-- P&L TAB -->
+    <div class="tab-content active" id="pl-tab">
+      <div class="g2" style="align-items:start; gap:24px;">
+        <div>
+          <h3 style="margin-bottom:12px;font-size:1rem;color:var(--t0);">Profit &amp; Loss Statement (3-Year Comparison)</h3>
+          <table class="fin-table">
+            <thead>
+              <tr>
+                <th>Financial Year</th>
+                <th class="num" id="plY1Lbl">Y1</th>
+                <th class="num" id="plY2Lbl">Y2</th>
+                <th class="num" id="plY3Lbl">Y3 (Latest)</th>
+                <th class="num">YoY Change</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="label-cell">Revenue / Turnover (₹)</td>
+                <td class="num" id="tdPlRevY1">0</td>
+                <td class="num" id="tdPlRevY2">0</td>
+                <td class="num" id="tdPlRevY3">0</td>
+                <td class="num" id="tdPlRevYoY" style="font-weight:600;">0.0%</td>
+              </tr>
+              <tr>
+                <td class="label-cell">EBITDA (₹)</td>
+                <td class="num" id="tdPlEbitdaY1">0</td>
+                <td class="num" id="tdPlEbitdaY2">0</td>
+                <td class="num" id="tdPlEbitdaY3">0</td>
+                <td class="num" id="tdPlEbitdaYoY">0.0%</td>
+              </tr>
+              <tr>
+                <td class="label-cell">EBITDA Margin (%)</td>
+                <td class="num" id="tdPlEbitdaMarY1">0.0%</td>
+                <td class="num" id="tdPlEbitdaMarY2">0.0%</td>
+                <td class="num" id="tdPlEbitdaMarY3">0.0%</td>
+                <td class="num" id="tdPlEbitdaMarDiff">0.0%</td>
+              </tr>
+              <tr>
+                <td class="label-cell">Net Profit (₹)</td>
+                <td class="num" id="tdPlNpY1">0</td>
+                <td class="num" id="tdPlNpY2">0</td>
+                <td class="num" id="tdPlNpY3">0</td>
+                <td class="num" id="tdPlNpYoY">0.0%</td>
+              </tr>
+              <tr>
+                <td class="label-cell">Net Profit Margin (%)</td>
+                <td class="num" id="tdPlNpMarY1">0.0%</td>
+                <td class="num" id="tdPlNpMarY2">0.0%</td>
+                <td class="num" id="tdPlNpMarY3">0.0%</td>
+                <td class="num" id="tdPlNpMarDiff">0.0%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="gc" style="background:rgba(255,255,255,0.02); padding:20px;">
+          <h4 style="margin-bottom:12px;font-size:.9rem;color:var(--t0);display:flex;align-items:center;gap:6px;">
+            <i class="fas fa-brain" style="color:var(--p1);"></i> P&amp;L AI Summary
+          </h4>
+          <div style="font-size:.85rem;color:var(--t2);line-height:1.6;display:flex;flex-direction:column;gap:12px;margin-bottom:20px;" id="plSummaryText">
+            <!-- Dynamically populated summary -->
+          </div>
+          <h4 style="margin-bottom:12px;font-size:.9rem;color:var(--t0);display:flex;align-items:center;gap:6px;border-top:1px solid rgba(255,255,255,0.05);padding-top:16px;">
+            <i class="fas fa-chart-line" style="color:var(--p1);"></i> Profitability Trends (3 Years)
+          </h4>
+          <div class="chart-c" style="background:rgba(255,255,255,0.02); padding:10px; border-radius: var(--r-sm);">
+            <div class="ch-wrap" style="height:200px;"><canvas id="chPlTrend"></canvas></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BALANCE SHEET TAB -->
+    <div class="tab-content" id="bs-tab">
+      <div class="g2" style="align-items:start; gap:24px;">
+        <div>
+          <h3 style="margin-bottom:12px;font-size:1rem;color:var(--t0);">Balance Sheet Composition</h3>
+          <table class="fin-table">
+            <thead>
+              <tr>
+                <th>Particulars</th>
+                <th class="num">Amount (₹)</th>
+                <th class="num">% of Total Assets</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="background:rgba(255,255,255,0.02);"><td colspan="3" style="font-weight:700;color:var(--t0);font-size:.78rem;">ASSETS</td></tr>
+              <tr>
+                <td class="label-cell" style="padding-left: 24px;">Current Assets</td>
+                <td class="num" id="tdBsCA">0</td>
+                <td class="num" id="tdBsCAPct">0.0%</td>
+              </tr>
+              <tr>
+                <td class="label-cell" style="padding-left: 24px;">Fixed Assets</td>
+                <td class="num" id="tdBsFA">0</td>
+                <td class="num" id="tdBsFAPct">0.0%</td>
+              </tr>
+              <tr style="font-weight:700; color:var(--t0); background:rgba(255,255,255,0.03);">
+                <td>Total Assets</td>
+                <td class="num" id="tdBsTotalAssets">0</td>
+                <td class="num">100.0%</td>
+              </tr>
+              <tr style="background:rgba(255,255,255,0.02);"><td colspan="3" style="font-weight:700;color:var(--t0);font-size:.78rem;">LIABILITIES &amp; EQUITY</td></tr>
+              <tr>
+                <td class="label-cell" style="padding-left: 24px;">Current Liabilities</td>
+                <td class="num" id="tdBsCL">0</td>
+                <td class="num" id="tdBsCLPct">0.0%</td>
+              </tr>
+              <tr>
+                <td class="label-cell" style="padding-left: 24px;">Long-Term Debt</td>
+                <td class="num" id="tdBsLD">0</td>
+                <td class="num" id="tdBsLDPct">0.0%</td>
+              </tr>
+              <tr>
+                <td class="label-cell" style="padding-left: 24px;">Equity / Net Worth</td>
+                <td class="num" id="tdBsEQ">0</td>
+                <td class="num" id="tdBsEQPct">0.0%</td>
+              </tr>
+              <tr style="font-weight:700; color:var(--t0); background:rgba(255,255,255,0.03);">
+                <td>Total Liabilities &amp; Equity</td>
+                <td class="num" id="tdBsTotalLiabEquity">0</td>
+                <td class="num">100.0%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="gc" style="background:rgba(255,255,255,0.02); padding:20px;">
+          <h4 style="margin-bottom:12px;font-size:.9rem;color:var(--t0);display:flex;align-items:center;gap:6px;">
+            <i class="fas fa-chart-pie" style="color:var(--p2);"></i> Capital Structure Analysis
+          </h4>
+          <div style="font-size:.85rem;color:var(--t2);line-height:1.6;display:flex;flex-direction:column;gap:12px;" id="bsSummaryText">
+            <!-- Dynamically populated summary -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CASH FLOW & TRENDS TAB -->
+    <div class="tab-content" id="cf-tab">
+      <div class="g2" style="align-items:start; gap:24px;">
+        <div>
+          <h3 style="margin-bottom:12px;font-size:1rem;color:var(--t0);">Operating Cash Flow Statement</h3>
+          <table class="fin-table">
+            <thead>
+              <tr>
+                <th>Cash Flow Particulars</th>
+                <th class="num" id="cfY1Lbl">Y1</th>
+                <th class="num" id="cfY2Lbl">Y2</th>
+                <th class="num" id="cfY3Lbl">Y3 (Latest)</th>
+                <th class="num">YoY Growth (Y3)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="label-cell">Operating Cash Flow (₹)</td>
+                <td class="num" id="tdCfOcfY1">0</td>
+                <td class="num" id="tdCfOcfY2">0</td>
+                <td class="num" id="tdCfOcfY3">0</td>
+                <td class="num" id="tdCfOcfYoY" style="font-weight:600;">0.0%</td>
+              </tr>
+              <tr>
+                <td class="label-cell">OCF to Revenue (%)</td>
+                <td class="num" id="tdCfOcfRevY1">0.0%</td>
+                <td class="num" id="tdCfOcfRevY2">0.0%</td>
+                <td class="num" id="tdCfOcfRevY3">0.0%</td>
+                <td class="num" id="tdCfOcfRevYoY">0.0%</td>
+              </tr>
+              <tr>
+                <td class="label-cell">OCF to EBITDA (%)</td>
+                <td class="num" id="tdCfOcfEbitdaY1">0.0%</td>
+                <td class="num" id="tdCfOcfEbitdaY2">0.0%</td>
+                <td class="num" id="tdCfOcfEbitdaY3">0.0%</td>
+                <td class="num" id="tdCfOcfEbitdaYoY">0.0%</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style="margin-top:20px;">
+            <div class="trend-card" id="cfTrendCard">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                <div id="cfTrendIcon" style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.85rem;font-weight:bold;">
+                  <i class="fas fa-chart-line"></i>
+                </div>
+                <div>
+                  <div style="font-size:.7rem;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;">Cash Flow Trend Direction</div>
+                  <div style="font-weight:800;font-size:1.05rem;" id="cfTrendTitle">Evaluating...</div>
+                </div>
+              </div>
+              <p style="font-size:.84rem;color:var(--t2);line-height:1.6;" id="cfTrendDesc">
+                Analyzing extracted operating cash flow history...
+              </p>
+            </div>
+          </div>
+        </div>
+        <div>
+          <h3 style="margin-bottom:12px;font-size:1rem;color:var(--t0);display:flex;align-items:center;gap:8px;">
+            <i class="fas fa-chart-line" style="color:var(--p1);"></i> Operating Cash Flow Trend (3 Years)
+          </h3>
+          <div class="chart-c" style="background:rgba(255,255,255,0.02); padding:18px;">
+            <div class="ch-wrap" style="height:270px;"><canvas id="chCfTrend"></canvas></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex-c">
+    <button class="btn btn-g" onclick="goPage(1)"><i class="fas fa-arrow-left"></i> Back to Verify</button>
+    <button class="btn btn-p" onclick="goRatios()"><i class="fas fa-arrow-right"></i> Proceed to Ratios</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 5 — FINANCIAL RATIOS (NEW)
+═══════════════════════════════════════════════════ -->
+<div class="page" id="p5">
+  <div class="sec-hd">
+    <div class="sec-eye">Step 5 of 8 — Financial Ratios</div>
+    <div class="sec-title">Key Financial Ratios (3-Year Comparison)</div>
+    <div class="sec-desc">Analyze Profitability, Liquidity, Leverage, Efficiency, and Growth ratios. Ratios are computed using standard formulas.</div>
+  </div>
+
+  <div class="g2" style="align-items:start; gap:24px; margin-bottom:22px;">
+    <div>
+      <h3 style="margin-bottom:12px;font-size:1rem;color:var(--t0);">Comparative Ratios Table</h3>
+      <table class="fin-table">
+        <thead>
+          <tr>
+            <th>Ratio Category &amp; Name</th>
+            <th>Formula Hint</th>
+            <th class="num" id="ratY1Lbl">Y1</th>
+            <th class="num" id="ratY2Lbl">Y2</th>
+            <th class="num" id="ratY3Lbl">Y3 (Latest)</th>
+            <th class="num">Benchmark</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="background:rgba(255,255,255,0.02);"><td colspan="6" style="font-weight:700;color:var(--t0);font-size:.78rem;">PROFITABILITY</td></tr>
+          <tr>
+            <td class="label-cell" style="padding-left: 24px;">Net Profit Margin</td>
+            <td style="font-size:.72rem;color:var(--t3);">Net Profit / Revenue</td>
+            <td class="num" id="tdRatNpmY1">—</td>
+            <td class="num" id="tdRatNpmY2">—</td>
+            <td class="num" id="tdRatNpmY3">—</td>
+            <td class="num">≥ 15.0%</td>
+          </tr>
+          <tr>
+            <td class="label-cell" style="padding-left: 24px;">EBITDA Margin</td>
+            <td style="font-size:.72rem;color:var(--t3);">EBITDA / Revenue</td>
+            <td class="num" id="tdRatEbitdaMarY1">—</td>
+            <td class="num" id="tdRatEbitdaMarY2">—</td>
+            <td class="num" id="tdRatEbitdaMarY3">—</td>
+            <td class="num">≥ 20.0%</td>
+          </tr>
+          <tr>
+            <td class="label-cell" style="padding-left: 24px;">Operating Margin</td>
+            <td style="font-size:.72rem;color:var(--t3);">EBIT / Revenue</td>
+            <td class="num" id="tdRatOpMarY1">—</td>
+            <td class="num" id="tdRatOpMarY2">—</td>
+            <td class="num" id="tdRatOpMarY3">—</td>
+            <td class="num">≥ 15.0%</td>
+          </tr>
+
+          <tr style="background:rgba(255,255,255,0.02);"><td colspan="6" style="font-weight:700;color:var(--t0);font-size:.78rem;">LIQUIDITY</td></tr>
+          <tr>
+            <td class="label-cell" style="padding-left: 24px;">Current Ratio</td>
+            <td style="font-size:.72rem;color:var(--t3);">Current Assets / Current Liabilities</td>
+            <td class="num">—</td>
+            <td class="num">—</td>
+            <td class="num" id="tdRatCRY3">—</td>
+            <td class="num">≥ 1.50x</td>
+          </tr>
+          <tr>
+            <td class="label-cell" style="padding-left: 24px;">Quick Ratio</td>
+            <td style="font-size:.72rem;color:var(--t3);">(Current Assets - Inventory) / Current Liabilities</td>
+            <td class="num">—</td>
+            <td class="num">—</td>
+            <td class="num" id="tdRatQRY3">—</td>
+            <td class="num">≥ 1.00x</td>
+          </tr>
+
+          <tr style="background:rgba(255,255,255,0.02);"><td colspan="6" style="font-weight:700;color:var(--t0);font-size:.78rem;">LEVERAGE</td></tr>
+          <tr>
+            <td class="label-cell" style="padding-left: 24px;">Debt-to-Equity</td>
+            <td style="font-size:.72rem;color:var(--t3);">Total Debt / Equity</td>
+            <td class="num">—</td>
+            <td class="num">—</td>
+            <td class="num" id="tdRatDEY3">—</td>
+            <td class="num">≤ 1.00x</td>
+          </tr>
+          <tr>
+            <td class="label-cell" style="padding-left: 24px;">Debt Ratio</td>
+            <td style="font-size:.72rem;color:var(--t3);">Total Debt / Total Assets</td>
+            <td class="num">—</td>
+            <td class="num">—</td>
+            <td class="num" id="tdRatDRY3">—</td>
+            <td class="num">≤ 50.0%</td>
+          </tr>
+
+          <tr style="background:rgba(255,255,255,0.02);"><td colspan="6" style="font-weight:700;color:var(--t0);font-size:.78rem;">EFFICIENCY</td></tr>
+          <tr>
+            <td class="label-cell" style="padding-left: 24px;">Asset Turnover</td>
+            <td style="font-size:.72rem;color:var(--t3);">Revenue / Total Assets</td>
+            <td class="num">—</td>
+            <td class="num">—</td>
+            <td class="num" id="tdRatATY3">—</td>
+            <td class="num">≥ 1.20x</td>
+          </tr>
+
+          <tr style="background:rgba(255,255,255,0.02);"><td colspan="6" style="font-weight:700;color:var(--t0);font-size:.78rem;">GROWTH</td></tr>
+          <tr>
+            <td class="label-cell" style="padding-left: 24px;">Revenue Growth</td>
+            <td style="font-size:.72rem;color:var(--t3);">YoY Revenue Change (%)</td>
+            <td class="num">—</td>
+            <td class="num" id="tdRatRevG2">—</td>
+            <td class="num" id="tdRatRevG3">—</td>
+            <td class="num">≥ 10.0%</td>
+          </tr>
+          <tr>
+            <td class="label-cell" style="padding-left: 24px;">Profit Growth</td>
+            <td style="font-size:.72rem;color:var(--t3);">YoY Net Profit Change (%)</td>
+            <td class="num">—</td>
+            <td class="num" id="tdRatNPGB2">—</td>
+            <td class="num" id="tdRatNPGB3">—</td>
+            <td class="num">≥ 10.0%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Right Side: AI summary + Chart -->
+    <div style="display:flex; flex-direction:column; gap:20px; width:100%; max-width:420px;">
+      <div class="gc" style="background:rgba(255,255,255,0.02); padding:20px;">
+        <h4 style="margin-bottom:12px;font-size:.9rem;color:var(--t0);display:flex;align-items:center;gap:6px;">
+          <i class="fas fa-brain" style="color:var(--p2);"></i> Ratios AI Summary
+        </h4>
+        <div style="font-size:.85rem;color:var(--t2);line-height:1.6;display:flex;flex-direction:column;gap:12px;" id="ratiosSummaryText">
+          <!-- Dynamically populated summary -->
+        </div>
+      </div>
+
+      <div class="gc" style="background:rgba(255,255,255,0.02); padding:20px;">
+        <h4 style="margin-bottom:12px;font-size:.9rem;color:var(--t0);display:flex;align-items:center;gap:6px;">
+          <i class="fas fa-chart-line" style="color:var(--ok);"></i> Margins Trend Line
+        </h4>
+        <div class="chart-c" style="background:rgba(255,255,255,0.02); padding:10px; border-radius: var(--r-sm);">
+          <div class="ch-wrap" style="height:220px;"><canvas id="chRatiosTrend"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex-c">
+    <button class="btn btn-g" onclick="goPage(4)"><i class="fas fa-arrow-left"></i> Back to Financials</button>
+    <button class="btn btn-p" onclick="runAnalysis()"><i class="fas fa-chart-bar"></i> Proceed to Analysis</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 2 — RESULTS
+═══════════════════════════════════════════════════ -->
+<div class="page" id="p2">
+  <div class="sec-hd">
+    <div class="sec-eye">Step 7 of 8 — Credit Analysis Results</div>
+    <div class="sec-title">AI Credit Analysis Report</div>
+    <div class="sec-desc">Complete financial analysis with ratios, risk score, and automated lending recommendation.</div>
+  </div>
+
+  <div class="s-banner">
+    <div class="s-banner-ico"><i class="fas fa-check"></i></div>
+    <div style="font-size:1.15rem;font-weight:800;color:var(--t0);margin-bottom:4px;">Analysis Complete</div>
+    <div style="font-size:.875rem;color:var(--t2);">All metrics computed. Credit recommendation ready.</div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-grid" id="kpiGrid">
+    <div class="kpi-c"><div class="kpi-lbl">AI Credit Score</div><div class="kpi-val" id="kScore">—</div><div class="kpi-st" id="kScoreSt"></div></div>
+    <div class="kpi-c"><div class="kpi-lbl">Current Ratio</div><div class="kpi-val" id="kCR">—</div><div class="kpi-st" id="kCRSt"></div></div>
+    <div class="kpi-c"><div class="kpi-lbl">FOIR</div><div class="kpi-val" id="kFOIR">—</div><div class="kpi-st" id="kFOIRSt"></div></div>
+    <div class="kpi-c"><div class="kpi-lbl">Debt / Equity</div><div class="kpi-val" id="kDE">—</div><div class="kpi-st" id="kDESt"></div></div>
+    <div class="kpi-c"><div class="kpi-lbl">Net Margin Y3</div><div class="kpi-val" id="kNM">—</div><div class="kpi-st" id="kNMSt"></div></div>
+    <div class="kpi-c"><div class="kpi-lbl">DSCR</div><div class="kpi-val" id="kDSCR">—</div><div class="kpi-st" id="kDSCRSt"></div></div>
+  </div>
+
+  <!-- Rec + Score -->
+  <div class="g2" style="margin-bottom:22px;">
+    <div class="rec-c ra" id="recCard">
+      <div class="rec-ico"><i class="fas fa-thumbs-up" id="recIco"></i></div>
+      <div class="rec-tag" id="recTag">APPROVED</div>
+      <div class="rec-h" id="recH">Loan Approved</div>
+      <div class="rec-p" id="recP">Strong financial profile meets lending criteria.</div>
+    </div>
+    <div class="score-card">
+      <svg viewBox="0 0 160 160" style="width:130px;height:130px;display:block;margin:0 auto 10px;">
+        <defs>
+          <linearGradient id="sg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#6366F1"/>
+            <stop offset="100%" stop-color="#8B5CF6"/>
+          </linearGradient>
+        </defs>
+        <circle cx="80" cy="80" r="64" fill="none" stroke="rgba(255,255,255,.05)" stroke-width="12"/>
+        <circle cx="80" cy="80" r="64" fill="none" stroke="url(#sg)" stroke-width="12"
+          stroke-linecap="round" stroke-dasharray="402" stroke-dashoffset="402"
+          id="scoreRing" transform="rotate(-90 80 80)" style="transition:stroke-dashoffset 1.6s cubic-bezier(.4,0,.2,1);"/>
+      </svg>
+      <div class="score-lbl">AI Credit Score</div>
+      <div class="score-num" id="scoreBig">—</div>
+      <div class="score-max">out of 100</div>
+      <div class="risk-badge" id="riskBadge" style="background:rgba(99,102,241,.15);color:var(--p1);">—</div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="g2" style="margin-bottom:22px;">
+    <div class="chart-c">
+      <div class="ch-title"><i class="fas fa-chart-bar" style="color:var(--p1);"></i> Revenue & Profitability (3 Years)</div>
+      <div class="ch-wrap"><canvas id="chRev"></canvas></div>
+    </div>
+    <div class="chart-c">
+      <div class="ch-title"><i class="fas fa-chart-pie" style="color:var(--p2);"></i> Balance Sheet Composition</div>
+      <div class="ch-wrap"><canvas id="chBal"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Ratios -->
+  <div class="gc" style="padding:26px;margin-bottom:22px;">
+    <div class="gc-title" style="margin-bottom:22px;">
+      <div class="gc-ico"><i class="fas fa-calculator" style="font-size:.8rem;"></i></div>
+      Financial Ratios — Detailed Analysis
+    </div>
+    <div class="ratio-grid" id="ratioGrid"></div>
+  </div>
+
+  <div class="flex-c">
+    <button class="btn btn-g" onclick="goPage(4)"><i class="fas fa-arrow-left"></i> Back to Financials</button>
+    <button class="btn btn-p" onclick="goPage(3)"><i class="fas fa-download"></i> Download Report</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 3 — DOWNLOAD
+═══════════════════════════════════════════════════ -->
+<div class="page" id="p3">
+  <div class="sec-hd">
+    <div class="sec-eye">Step 8 of 8 — Report Download</div>
+    <div class="sec-title">Download Credit Report</div>
+    <div class="sec-desc">Your comprehensive AI credit analysis report is ready. Download in your preferred format.</div>
+  </div>
+  <div class="s-banner">
+    <div class="s-banner-ico"><i class="fas fa-file-check"></i></div>
+    <div style="font-size:1.15rem;font-weight:800;color:var(--t0);margin-bottom:4px;">Report Ready</div>
+    <div style="font-size:.875rem;color:var(--t2);">All financial ratios, risk scores, and recommendations are compiled.</div>
+  </div>
+  <div class="report-row">
+    <div class="rpt-c" onclick="dlReport('pdf')">
+      <div class="rpt-ico" style="color:#EF4444;">📄</div>
+      <div class="rpt-t">PDF Report</div>
+      <div class="rpt-d">Complete formatted credit document</div>
+    </div>
+    <div class="rpt-c" onclick="dlReport('csv')">
+      <div class="rpt-ico" style="color:#10B981;">📊</div>
+      <div class="rpt-t">Excel / CSV</div>
+      <div class="rpt-d">Spreadsheet with all metrics</div>
+    </div>
+    <div class="rpt-c" onclick="dlReport('json')">
+      <div class="rpt-ico" style="color:#6366F1;">📋</div>
+      <div class="rpt-t">JSON Export</div>
+      <div class="rpt-d">API-ready structured data</div>
+    </div>
+  </div>
+  <div class="flex-c mt28">
+    <button class="btn btn-g" onclick="goPage(2)"><i class="fas fa-arrow-left"></i> Back to Results</button>
+    <button class="btn btn-p" onclick="newAnalysis()"><i class="fas fa-plus"></i> New Analysis</button>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+'use strict';
+/* ═══════════════════════════════════════
+   CONFIG
+═══════════════════════════════════════ */
+const VISION_KEY = 'AIzaSyByNxAB3WuwC-kOjOhO7on8n5kRW8wSJhc';
+const VISION_URL = `https://vision.googleapis.com/v1/images:annotate?key=${VISION_KEY}`;
+
+/* ═══════════════════════════════════════
+   STATE
+═══════════════════════════════════════ */
+let S = {
+  page: 0,               // current visible page (0-3)
+  stepIdx: 0,            // current stepper index (0-5)
+  maxStep: 0,            // furthest unlocked step
+  files: [],             // File[]
+  mode: 'local',
+  extractedData: null,
+  rawText: '',
+  extractedFields: [],
+  analysis: null,
+  busy: false,
+};
+
+// Step→page mapping
+const STEP_PAGE = { 0:0, 1:'overlay', 2:1, 3:4, 4:5, 5:'overlay', 6:2, 7:3 };
+// Page→step mapping
+const PAGE_STEP = { 0:0, 1:2, 4:3, 5:4, 2:6, 3:7 };
+
+let charts = {};
+
+/* ═══════════════════════════════════════
+   STEPPER & NAVIGATION
+═══════════════════════════════════════ */
+function tryStep(idx) {
+  if (S.busy) { toast('warn','Please Wait','Processing is in progress.'); return; }
+  if (idx > S.maxStep) { toast('info','Complete Previous Steps','Please complete the earlier steps first.'); return; }
+  if (STEP_PAGE[idx] === 'overlay') return; // can't navigate to overlay steps
+  activateStep(idx);
+  goPage(STEP_PAGE[idx] === undefined ? 0 : STEP_PAGE[idx]);
+}
+
+function activateStep(idx) {
+  S.stepIdx = idx;
+  if (idx > S.maxStep) S.maxStep = idx;
+  for (let i = 0; i < 8; i++) {
+    const el = document.getElementById('st' + i);
+    if (!el) continue;
+    el.classList.remove('active','done');
+    if (i < idx) el.classList.add('done');
+    else if (i === idx) el.classList.add('active');
+  }
+  document.getElementById('stProg').style.width = (idx / 7 * 100) + '%';
+}
+
+function goPage(pIdx) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('p' + pIdx).classList.add('active');
+  S.page = pIdx;
+  activateStep(PAGE_STEP[pIdx] || 0);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ═══════════════════════════════════════
+   FILE HANDLING
+═══════════════════════════════════════ */
+function onDragOver(e){ e.preventDefault(); document.getElementById('uz').classList.add('drag'); }
+function onDragLeave(){ document.getElementById('uz').classList.remove('drag'); }
+function onDrop(e){ e.preventDefault(); document.getElementById('uz').classList.remove('drag'); addFiles(e.dataTransfer.files); }
+function onFileSelect(e){ addFiles(e.target.files); }
+
+function addFiles(fList) {
+  const added = [];
+  Array.from(fList).forEach(f => {
+    if (!S.files.some(x => x.name===f.name && x.size===f.size)) {
+      S.files.push(f); added.push(f.name);
+    }
+  });
+  renderFiles();
+  if (added.length) {
+    log(`Added ${added.length} file(s): ${added.join(', ')}`, 'ok');
+    document.getElementById('navDocs').textContent = S.files.length;
+    document.getElementById('btnExtract').disabled = false;
+    toast('ok','Files Added', `${added.length} file(s) ready for extraction.`);
+  }
+}
+
+function fIcon(name) {
+  const e = name.toLowerCase().split('.').pop();
+  if (e==='pdf') return ['fa-file-pdf','fi-pdf'];
+  if (['xlsx','xls'].includes(e)) return ['fa-file-excel','fi-xls'];
+  if (e==='csv') return ['fa-table','fi-xls'];
+  if (['png','jpg','jpeg'].includes(e)) return ['fa-file-image','fi-img'];
+  if (['docx','doc'].includes(e)) return ['fa-file-word','fi-doc'];
+  return ['fa-file','fi-txt'];
+}
+
+function fSize(b){ return b>1048576 ? (b/1048576).toFixed(1)+' MB' : (b/1024).toFixed(1)+' KB'; }
+
+function renderFiles() {
+  const c = document.getElementById('fileList');
+  if (!S.files.length){ c.innerHTML=''; return; }
+  c.innerHTML = `<div style="font-size:.72rem;font-weight:800;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin:18px 0 8px;">${S.files.length} File(s) Ready</div><div class="file-list-wrap">` +
+    S.files.map((f,i) => {
+      const [ico,cls] = fIcon(f.name);
+      return `<div class="file-card" id="fc${i}">
+        <div class="fi ${cls}"><i class="fas ${ico}"></i></div>
+        <div class="fc-info">
+          <div class="fc-name">${f.name}</div>
+          <div class="fc-meta">${fSize(f.size)} · ${f.type||'Document'}</div>
+        </div>
+        <span class="fc-badge b-ready" id="fs${i}">✓ Ready</span>
+        <button class="fc-rm" onclick="rmFile(${i})" title="Remove"><i class="fas fa-times"></i></button>
+      </div>`;
+    }).join('') + '</div>';
+}
+
+function rmFile(i){ const n=S.files[i].name; S.files.splice(i,1); renderFiles(); document.getElementById('navDocs').textContent=S.files.length; if(!S.files.length) document.getElementById('btnExtract').disabled=true; log(`Removed: ${n}`,'warn'); }
+function clearAll(){ S.files=[]; renderFiles(); document.getElementById('navDocs').textContent='0'; document.getElementById('btnExtract').disabled=true; log('All files cleared.','warn'); }
+function setFStatus(i,cls,txt){ const e=document.getElementById('fs'+i); if(e){e.className='fc-badge '+cls;e.textContent=txt;} }
+
+/* ═══════════════════════════════════════
+   MODE
+═══════════════════════════════════════ */
+function setMode(m,el) {
+  S.mode=m;
+  document.querySelectorAll('.mode-opt').forEach(x=>x.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('api-row').style.display = m==='backend'?'flex':'none';
+  log(`Mode: ${m}`,'inf');
+}
+
+async function pingBackend() {
+  const url = document.getElementById('apiUrl').value.replace('/extract','/ping');
+  try{ const r=await fetch(url); const d=await r.json(); toast('ok','Connected',d.message||'Backend online.'); }
+  catch{ toast('err','Failed','Cannot reach backend. Is the server running?'); }
+}
+
+/* ═══════════════════════════════════════
+   OVERLAY CONTROL
+═══════════════════════════════════════ */
+const EXT_STAGES = [
+  { t:'Uploading documents', d:'~2s' },
+  { t:'Detecting document type', d:'~1s' },
+  { t:'Rendering pages for OCR', d:'~3s' },
+  { t:'Extracting text with Vision AI', d:'~5s' },
+  { t:'Parsing financial fields', d:'~2s' },
+  { t:'Validating extracted data', d:'~1s' },
+];
+const ANA_STAGES = [
+  { t:'Computing liquidity ratios', d:'~1s' },
+  { t:'Calculating leverage metrics', d:'~1s' },
+  { t:'Profitability analysis', d:'~1s' },
+  { t:'Running credit risk model', d:'~2s' },
+  { t:'Generating AI credit score', d:'~1s' },
+  { t:'Preparing recommendation', d:'~1s' },
+];
+
+function showOverlay(icon, title, desc, stages) {
+  S.busy = true;
+  document.getElementById('ovIcon').className = 'fas fa-' + icon;
+  document.getElementById('ovTitle').textContent = title;
+  document.getElementById('ovDesc').textContent = desc;
+  setProgress(0,'Initializing...');
+  const sl = document.getElementById('stageList');
+  sl.innerHTML = stages.map((s,i) => `
+    <div class="stage-item" id="sg${i}">
+      <div class="s-dot"></div><div class="s-spin"></div>
+      <i class="fas fa-check s-chk"></i>
+      <div class="s-txt">${s.t}</div>
+      <div class="s-time">${s.d}</div>
+    </div>`).join('');
+  document.getElementById('overlay').classList.add('show');
+}
+
+function hideOverlay() {
+  document.getElementById('overlay').classList.remove('show');
+  S.busy = false;
+}
+
+function setProgress(pct, lbl) {
+  document.getElementById('pbFill').style.width = Math.min(100,pct) + '%';
+  document.getElementById('pbPct').textContent = Math.round(pct) + '%';
+  if (lbl) document.getElementById('pbLbl').textContent = lbl;
+}
+
+function setStage(idx, stages) {
+  stages.forEach((_,i) => {
+    const el = document.getElementById('sg' + i);
+    if (!el) return;
+    el.classList.remove('s-active','s-done');
+    if (i < idx) el.classList.add('s-done');
+    else if (i === idx) el.classList.add('s-active');
+  });
+  const rem = stages.length - idx;
+  document.getElementById('etaTxt').textContent = `Estimated time remaining: ~${rem * 2}s`;
+  if (stages[idx]) document.getElementById('ovTitle').textContent = stages[idx].t;
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* ═══════════════════════════════════════
+   VISION OCR
+═══════════════════════════════════════ */
+async function visionOCR(b64) {
+  const res = await fetch(VISION_URL, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ requests:[{ image:{content:b64}, features:[{type:'DOCUMENT_TEXT_DETECTION'}] }] })
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error?.message || `HTTP ${res.status}`);
+  }
+  const d = await res.json();
+  return d.responses?.[0]?.textAnnotations?.[0]?.description || '';
+}
+
+function toB64(file) {
+  return new Promise((res,rej) => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+function toText(file) {
+  return new Promise((res,rej) => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result);
+    r.onerror = rej;
+    r.readAsText(file);
+  });
+}
+
+/* ═══════════════════════════════════════
+   EXTRACTION WORKFLOW
+═══════════════════════════════════════ */
+async function startExtract() {
+  if (!S.files.length) { toast('warn','No Files','Upload at least one document.'); return; }
+  showOverlay('brain','Starting Extraction','Preparing your documents for AI analysis...', EXT_STAGES);
+  activateStep(1);
+  S.files.forEach((_,i) => setFStatus(i,'b-proc','⏳ Processing...'));
+
+  try {
+    if (S.mode === 'backend') await extractBackend();
+    else if (S.mode === 'vision') await extractVision();
+    else await extractLocal();
+  } catch(e) {
+    hideOverlay();
+    log('Extraction error: ' + e.message, 'err');
+    toast('err','Extraction Failed', e.message);
+    S.files.forEach((_,i) => setFStatus(i,'b-ready','✓ Ready'));
+    activateStep(0);
+  }
+}
+
+/* ─── Backend Mode ─── */
+async function extractBackend() {
+  const url = document.getElementById('apiUrl').value.trim();
+  setStage(0, EXT_STAGES); setProgress(8,'Uploading files...');
+  const fd = new FormData();
+  S.files.forEach(f => fd.append('files', f));
+  setStage(1, EXT_STAGES); setProgress(20,'Server processing...');
+  const res = await fetch(url, {method:'POST', body:fd});
+  setStage(2, EXT_STAGES); setProgress(40,'Reading response...');
+  if (!res.ok) throw new Error(`Backend HTTP ${res.status}`);
+  const data = await res.json();
+  setStage(3, EXT_STAGES); setProgress(65,'Mapping fields...');
+  if (!data.success) throw new Error(data.error || 'Backend failed');
+  setStage(4, EXT_STAGES); setProgress(82,'Populating form...');
+  await sleep(400);
+  setStage(5, EXT_STAGES); setProgress(97,'Finalizing...');
+  await sleep(300);
+  S.extractedData = data.data;
+  S.rawText = data.raw_text_preview || '';
+  populateForm(data.data, data.file_summaries||[]);
+  S.files.forEach((_,i) => setFStatus(i,'b-done','✓ Extracted'));
+  setProgress(100,'Complete!');
+  await sleep(500);
+  afterExtract(data.total_chars_extracted||0, data.file_summaries||[]);
+}
+
+/* ─── Vision Mode ─── */
+async function extractVision() {
+  let allText = ''; const summaries = [];
+  for (let i = 0; i < S.files.length; i++) {
+    const f = S.files[i];
+    const ext = f.name.toLowerCase().split('.').pop();
+    setStage(0, EXT_STAGES); setProgress(5,'Uploading '+f.name+'...'); await sleep(200);
+    setStage(1, EXT_STAGES); setProgress(12,'Detecting document type...'); await sleep(180);
+    setStage(2, EXT_STAGES); setProgress(22,'Rendering for OCR...'); await sleep(200);
+    try {
+      let text = '';
+      if (['png','jpg','jpeg'].includes(ext)) {
+        setStage(3, EXT_STAGES); setProgress(38,'Sending to Google Vision API...');
+        const b64 = await toB64(f);
+        text = await visionOCR(b64);
+        summaries.push({name:f.name,type:'Image',chars:text.length,status:'done'});
+        log(`Vision OCR: ${text.length} chars from ${f.name}`,'ok');
+      } else if (ext === 'pdf') {
+        setStage(3, EXT_STAGES); setProgress(38,'Sending PDF to Vision API...');
+        const b64 = await toB64(f);
+        text = await visionOCR(b64);
+        summaries.push({name:f.name,type:'PDF',chars:text.length,status:text.length>0?'done':'empty'});
+        log(`Vision PDF: ${text.length} chars`,'ok');
+      } else if (['txt','csv'].includes(ext)) {
+        text = await toText(f);
+        summaries.push({name:f.name,type:'Text',chars:text.length,status:'done'});
+      } else {
+        throw new Error("Unsupported format for Vision OCR. Use PDF or Images.");
+      }
+      allText += `\n--- ${f.name} ---\n${text}\n`;
+      setFStatus(i,'b-done','✓ Extracted');
+    } catch(ve) {
+      log(`Vision API failed for ${f.name}: ${ve.message}. Switching to local browser parser...`,'warn');
+      toast('warn','Vision API Failed','Attempting local browser-based OCR/text fallback...');
+      try {
+        let text = '';
+        if (['png','jpg','jpeg'].includes(ext)) {
+          text = await ocrImageClient(f);
+          summaries.push({name:f.name,type:'Image (Local OCR)',chars:text.length,status:'done'});
+        } else if (ext === 'pdf') {
+          // Try text extraction first
+          text = await parsePdfClient(f);
+          if (text.trim().length < 40) {
+            text = await parsePdfOcrClient(f);
+            summaries.push({name:f.name,type:'PDF (Scanned - Local OCR)',chars:text.length,status:'done'});
+          } else {
+            summaries.push({name:f.name,type:'PDF (Text - Local)',chars:text.length,status:'done'});
+          }
+        } else if (['txt','csv'].includes(ext)) {
+          text = await toText(f);
+          summaries.push({name:f.name,type:'Text',chars:text.length,status:'done'});
+        }
+        allText += `\n--- ${f.name} ---\n${text}\n`;
+        setFStatus(i,'b-done','✓ Parsed (Local)');
+        log(`Local browser fallback successful for ${f.name} (${text.length} chars).`,'ok');
+      } catch(le) {
+        log(`Local browser fallback failed for ${f.name}: ${le.message}`,'err');
+        setFStatus(i,'b-err','❌ Failed');
+        summaries.push({name:f.name,type:'Failed',chars:0,status:'failed'});
+        toast('err','Vision OCR Failed',`Could not extract text from ${f.name}: ${ve.message}. Local fallback also failed: ${le.message}`);
+      }
+    }
+    setProgress(40 + ((i+1)/S.files.length)*45, 'Parsing text...');
+  }
+  setStage(4, EXT_STAGES); setProgress(88,'Mapping financial data...'); await sleep(400);
+  const parsed = parseFinancials(allText);
+  S.extractedData = parsed; S.rawText = allText;
+  setStage(5, EXT_STAGES); setProgress(97,'Finalizing...'); await sleep(300);
+  populateForm(parsed, summaries);
+  setProgress(100,'Complete!'); await sleep(500);
+  afterExtract(allText.length, summaries);
+}
+
+/* ─── Local/Offline Mode ─── */
+/* ─── Client-Side Document Parsers (Free / No Billing) ─── */
+async function parsePdfClient(file) {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let fullText = '';
+    const numPages = Math.min(pdf.numPages, 10);
+    for (let i = 1; i <= numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map(item => item.str).join(' ');
+      fullText += `\n[Page ${i}]\n${pageText}\n`;
+    }
+    return fullText;
+  } catch(e) {
+    throw new Error('PDF reader failed: ' + e.message);
+  }
+}
+
+async function parsePdfOcrClient(file) {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let fullText = '';
+    const numPages = Math.min(pdf.numPages, 3); // OCR max 3 pages client-side to be fast
+    for (let i = 1; i <= numPages; i++) {
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale: 1.5 });
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+      
+      await page.render({ canvasContext: context, viewport: viewport }).promise;
+      const dataUrl = canvas.toDataURL('image/jpeg');
+      
+      log(`Running local OCR on PDF page ${i}...`,'inf');
+      const text = await ocrImageClient(dataUrl);
+      fullText += `\n[Page ${i} OCR]\n${text}\n`;
+    }
+    return fullText;
+  } catch(e) {
+    throw new Error('PDF Canvas OCR failed: ' + e.message);
+  }
+}
+
+async function parseExcelClient(file) {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    let fullText = '';
+    workbook.SheetNames.forEach(sheetName => {
+      const worksheet = workbook.Sheets[sheetName];
+      const csv = XLSX.utils.sheet_to_csv(worksheet);
+      fullText += `\n[Sheet: ${sheetName}]\n${csv}\n`;
+    });
+    return fullText;
+  } catch(e) {
+    throw new Error('Excel parser failed: ' + e.message);
+  }
+}
+
+async function parseDocxClient(file) {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
+    return result.value;
+  } catch(e) {
+    throw new Error('Word parser failed: ' + e.message);
+  }
+}
+
+async function ocrImageClient(fileOrUrl) {
+  try {
+    const res = await Tesseract.recognize(fileOrUrl, 'eng');
+    return res.data.text;
+  } catch(e) {
+    throw new Error('Image OCR failed: ' + e.message);
+  }
+}
+
+/* ─── Client-Side/Offline Extraction Mode ─── */
+async function extractLocal() {
+  let allText = ''; const summaries = [];
+  for (let i = 0; i < S.files.length; i++) {
+    const f = S.files[i];
+    const ext = f.name.toLowerCase().split('.').pop();
+    setStage(0, EXT_STAGES); setProgress(10, 'Reading ' + f.name + '...');
+    let text = '';
+    try {
+      if (['txt', 'csv'].includes(ext)) {
+        setStage(1, EXT_STAGES); setProgress(25, 'Reading text...');
+        text = await toText(f);
+        summaries.push({name:f.name, type:'Text', chars:text.length, status:'done'});
+        setFStatus(i, 'b-done', '✓ Parsed');
+      } else if (['xlsx', 'xls'].includes(ext)) {
+        setStage(2, EXT_STAGES); setProgress(35, 'Reading spreadsheet...');
+        text = await parseExcelClient(f);
+        summaries.push({name:f.name, type:'Excel', chars:text.length, status:'done'});
+        setFStatus(i, 'b-done', '✓ Parsed');
+      } else if (['docx', 'doc'].includes(ext)) {
+        setStage(2, EXT_STAGES); setProgress(35, 'Reading Word doc...');
+        text = await parseDocxClient(f);
+        summaries.push({name:f.name, type:'Word', chars:text.length, status:'done'});
+        setFStatus(i, 'b-done', '✓ Parsed');
+      } else if (['png', 'jpg', 'jpeg'].includes(ext)) {
+        setStage(3, EXT_STAGES); setProgress(45, 'Running browser OCR...');
+        text = await ocrImageClient(f);
+        summaries.push({name:f.name, type:'Image OCR', chars:text.length, status:'done'});
+        setFStatus(i, 'b-done', '✓ OCR Done');
+      } else if (ext === 'pdf') {
+        setStage(1, EXT_STAGES); setProgress(20, 'Parsing PDF text...');
+        text = await parsePdfClient(f);
+        if (text.trim().length < 40) {
+          log(`PDF contains no embedded text. Running browser-based canvas OCR...`, 'warn');
+          setStage(3, EXT_STAGES); setProgress(45, 'Running OCR...');
+          text = await parsePdfOcrClient(f);
+          summaries.push({name:f.name, type:'PDF (Scanned)', chars:text.length, status:'done'});
+          setFStatus(i, 'b-done', '✓ OCR Done');
+        } else {
+          summaries.push({name:f.name, type:'PDF (Text)', chars:text.length, status:'done'});
+          setFStatus(i, 'b-done', '✓ Parsed');
+        }
+      } else {
+        throw new Error('Unsupported file extension: ' + ext);
+      }
+      allText += `\n--- ${f.name} ---\n${text}\n`;
+    } catch(err) {
+      log(`Client-side parser failed for ${f.name}: ${err.message}`, 'err');
+      setFStatus(i, 'b-err', '❌ Failed');
+      summaries.push({name:f.name, type:'Failed', chars:0, status:'failed'});
+      toast('err', 'Extraction Failed', `Error parsing ${f.name}: ${err.message}`);
+    }
+  }
+  setStage(4, EXT_STAGES); setProgress(82,'Parsing financial fields...'); await sleep(350);
+  const parsed = parseFinancials(allText);
+  S.extractedData = parsed; S.rawText = allText;
+  setStage(5, EXT_STAGES); setProgress(97,'Finalizing...'); await sleep(300);
+  populateForm(parsed, summaries);
+  setProgress(100,'Complete!'); await sleep(500);
+  afterExtract(allText.length, summaries);
+}
+
+function afterExtract(chars, summaries) {
+  hideOverlay();
+  log(`Extraction complete: ${chars.toLocaleString()} chars from ${S.files.length} file(s)`,'ok');
+  // Show extraction banner
+  const ban = document.getElementById('extBanner');
+  ban.classList.add('show');
+  document.getElementById('extBanTitle').textContent = 'AI Extraction Successful';
+  document.getElementById('extBanDesc').textContent = `Extracted ${chars.toLocaleString()} characters from ${S.files.length} file(s).`;
+  document.getElementById('extFieldCount').textContent = S.extractedFields.length + ' fields auto-filled';
+  // Raw text
+  document.getElementById('rawPrev').value = S.rawText.slice(0,3000) || 'No text.';
+  // Build doc pages
+  buildDocPages(summaries);
+  toast('ok','Extraction Complete!',`Data extracted from ${S.files.length} file(s). Review and run analysis.`);
+  goPage(1); // → Verify
+}
+
+/* ═══════════════════════════════════════
+   OCR SIMULATOR
+═══════════════════════════════════════ */
+function simOCR(filename) {
+  return `FINANCIAL STATEMENT — ${filename}
+Tech Solutions Private Limited | FY 2022-2025
+
+BALANCE SHEET
+Current Assets: Rs. 32,50,000
+Fixed Assets: Rs. 28,00,000
+Current Liabilities: Rs. 15,00,000
+Long Term Debt: Rs. 18,00,000
+Net Worth: Rs. 22,00,000
+
+PROFIT & LOSS
+Revenue 2023: 90,00,000
+Revenue 2024: 85,00,000
+Revenue 2025: 1,02,00,000
+Net Profit 2023: 13,50,000
+Net Profit 2024: 12,75,000
+Net Profit 2025: 15,30,000
+EBITDA 2023: 18,00,000
+EBITDA 2024: 17,00,000
+EBITDA 2025: 20,40,000
+
+Monthly Income: Rs. 80,000
+CIBIL Score: 725
+Proposed Loan Amount: Rs. 15,00,000
+Proposed EMI: Rs. 18,000
+Existing EMI: Rs. 10,000
+COGS: Rs. 45,00,000
+Operating Expenses: Rs. 28,00,000`;
+}
+
+/* ═══════════════════════════════════════
+   TEXT → FINANCIALS PARSER
+═══════════════════════════════════════ */
+function cfloat(v,d=null){ if(v===undefined||v===null||v==='')return d; const n=parseFloat(String(v).replace(/[^\d.\-]/g,'')); return isNaN(n)?d:n; }
+function cint(v,d=null){ const cf=cfloat(v,d); return cf===null?null:Math.round(cf); }
+function srch(t, pats, d=null){ for(const p of pats){ const m=t.match(p); if(m)return m[1]; } return d; }
+
+function parseFinancials(text) {
+  const tl = text.toLowerCase();
+  const d = {};
+
+  // 1. Business type
+  if (/public limited|motors limited|steel limited|industries limited/i.test(text)) d.businessType = 'Public Limited';
+  else if (/private limited|pvt\.?\s*ltd/i.test(text)) d.businessType = 'Private Limited';
+  else if (/\bllp\b|limited liability partnership/i.test(text)) d.businessType = 'LLP';
+  else if (/\bpartnership\b/i.test(text)) d.businessType = 'Partnership';
+  else {
+    if (/private/i.test(text)) d.businessType = 'Private Limited';
+    else if (/limited/i.test(text)) d.businessType = 'Public Limited';
+    else d.businessType = 'Private Limited';
+  }
+
+  // 2. Nature of Business
+  if (/manufactur|factory|plant|chemical|steel|industrial|motors|automotive/i.test(text)) d.natureOfBusiness = 'Manufacturing';
+  else if (/it services|software|technology|consulting|systems|infotech|digital/i.test(text)) d.natureOfBusiness = 'IT Services';
+  else if (/hospital|health|medical|clinic|pharma|diagnostics/i.test(text)) d.natureOfBusiness = 'Healthcare';
+  else if (/construct|builder|cement|infrastructure|real estate|developers/i.test(text)) d.natureOfBusiness = 'Construction';
+  else if (/trade|trading|distributor|wholesale|supply chain/i.test(text)) d.natureOfBusiness = 'Trading';
+  else d.natureOfBusiness = 'Manufacturing';
+
+  // Helper functions
+  function cleanFloat(val) {
+    if (val === undefined || val === null) return null;
+    let valStr = String(val).trim();
+    let isNegative = false;
+    if ((valStr.startsWith('(') && valStr.endsWith(')')) || (valStr.startsWith('[') && valStr.endsWith(']'))) {
+      isNegative = true;
+    }
+    valStr = valStr.replace(/[\(\)\[\]]/g, '');
+    
+    if (valStr.includes(',') && !valStr.includes('.')) {
+      let parts = valStr.split(',');
+      if (parts.length === 2 && parts[1].length === 2) {
+        valStr = valStr.replace(',', '.');
+      }
+    }
+    let cleaned = valStr.replace(/[^\d\.\-]/g, '');
+    if (!cleaned) return null;
+    let num = parseFloat(cleaned);
+    return isNegative ? -num : num;
+  }
+
+  function cleanInt(val) {
+    let cf = cleanFloat(val);
+    return cf === null ? null : Math.round(cf);
+  }
+
+  function srch(txt, patterns) {
+    for (let pattern of patterns) {
+      let match = txt.match(pattern);
+      if (match && match[1]) return match[1];
+    }
+    return null;
+  }
+
+  d.cibil = cleanInt(srch(text, [/(?:cibil|credit score|cibil[\s\-]+score)[\s:]+([3-9]\d{2})/i, /score[\s:]+([3-9]\d{2})/i]));
+  d.proposedLoan = cleanFloat(srch(text, [/(?:proposed loan|loan amount|requested loan|sanctioned amount)[\s:]+(?:rs\.?|inr|₹)?[\s,]*([\d,]+(?:\.\d+)?)/i, /loan value[\s:]+(?:rs\.?|inr|₹)?[\s,]*([\d,]+)/i]));
+  d.proposedEMI = cleanFloat(srch(text, [/(?:proposed emi|emi amount|expected emi|monthly installment)[\s:]+(?:rs\.?|inr|₹)?[\s,]*([\d,]+(?:\.\d+)?)/i]));
+  d.monthlyIncome = cleanFloat(srch(text, [/(?:monthly income|avg monthly income|monthly salary|monthly earnings)[\s:]+(?:rs\.?|inr|₹)?[\s,]*([\d,]+(?:\.\d+)?)/i]));
+  d.existingEMI = cleanFloat(srch(text, [/(?:existing emi|current emi|other emi|existing obligations)[\s:]+(?:rs\.?|inr|₹)?[\s,]*([\d,]+(?:\.\d+)?)/i]));
+
+  // Balance sheet section parser
+  const lines = text.split('\n');
+  let bsLines = [];
+  let inBs = false;
+  for (let line of lines) {
+    if (/assets and liabilities|assets & liabilities|balance sheet/i.test(line)) {
+      inBs = true;
+    }
+    if (inBs) {
+      bsLines.push(line);
+    }
+    if (inBs && /total equity and liabilities/i.test(line)) {
+      let idxTemp = lines.indexOf(line);
+      for (let j = idxTemp + 1; j <= idxTemp + 5 && j < lines.length; j++) {
+        bsLines.push(lines[j]);
+      }
+      break;
+    }
+  }
+  if (bsLines.length === 0) bsLines = lines;
+
+  let currentAssets = null, fixedAssets = null, currentLiabilities = null, longTermDebt = null, equity = null;
+
+  for (let i = 0; i < bsLines.length; i++) {
+    let lineClean = bsLines[i].trim();
+
+    // 1. Current Assets
+    if (/\(2\)\s*Current\s*assets/i.test(lineClean)) {
+      for (let j = i + 1; j < i + 16 && j < bsLines.length; j++) {
+        let subClean = bsLines[j].trim();
+        let nums = subClean.match(/[\d,]+\.\d{2}/g);
+        let words = subClean.match(/[a-zA-Z]/g);
+        if (nums && nums.length >= 1 && (!words || words.length === 0)) {
+          currentAssets = cleanFloat(nums[0]);
+          break;
+        }
+        if (/total/i.test(subClean) && /current/i.test(subClean) && /assets/i.test(subClean)) {
+          if (nums && nums.length >= 1) {
+            currentAssets = cleanFloat(nums[0]);
+            break;
+          }
+        }
+      }
+    }
+
+    // 2. Fixed Assets
+    if (/property,\s*plant\s*and\s*equipment|fixed\s*assets/i.test(lineClean)) {
+      let nums = lineClean.match(/[\d,]+\.\d{2}/g);
+      if (nums && nums.length >= 1) fixedAssets = cleanFloat(nums[0]);
+    }
+
+    // 3. Current Liabilities
+    if (/\(2\)\s*Current\s*liabilities/i.test(lineClean)) {
+      for (let j = i + 1; j < i + 20 && j < bsLines.length; j++) {
+        let subClean = bsLines[j].trim();
+        let nums = subClean.match(/[\d,]+\.\d{2}/g);
+        let words = subClean.match(/[a-zA-Z]/g);
+        if (nums && nums.length >= 1 && (!words || words.length === 0) && !/total|equity|assets/i.test(subClean)) {
+          currentLiabilities = cleanFloat(nums[0]);
+          break;
+        }
+      }
+    }
+
+    // 4. Long Term Debt
+    if (/\(1\}\s*Non-current\s*liabilities|\(1\)\s*Non-current\s*liabilities|\{1\}\s*Non-current\s*liabilities/i.test(lineClean)) {
+      for (let j = i + 1; j < i + 10 && j < bsLines.length; j++) {
+        let subClean = bsLines[j].trim();
+        if (/borrowings/i.test(subClean)) {
+          let nums = subClean.match(/[\d,]+\.\d{2}/g);
+          if (nums && nums.length >= 1) {
+            longTermDebt = cleanFloat(nums[0]);
+            break;
+          }
+        }
+      }
+      if (!longTermDebt) {
+        for (let j = i + 1; j < i + 15 && j < bsLines.length; j++) {
+          let subClean = bsLines[j].trim();
+          let nums = subClean.match(/[\d,]+\.\d{2}/g);
+          let words = subClean.match(/[a-zA-Z]/g);
+          if (nums && nums.length >= 1 && (!words || words.length === 0)) {
+            longTermDebt = cleanFloat(nums[0]);
+            break;
+          }
+        }
+      }
+    }
+
+    // 5. Equity / Net Worth
+    if (/net worth/i.test(lineClean) && !/ratio|margin|turnover/i.test(lineClean)) {
+      let nums = lineClean.match(/[\d,]+\.\d{2}/g);
+      if (nums && nums.length >= 1) equity = cleanFloat(nums[0]);
+    } else if (/total equity/i.test(lineClean) && !/liabilities/i.test(lineClean)) {
+      let nums = lineClean.match(/[\d,]+\.\d{2}/g);
+      if (nums && nums.length >= 1) equity = cleanFloat(nums[0]);
+    }
+  }
+
+  // Fallbacks
+  if (!currentAssets) currentAssets = cleanFloat(srch(text, [/(?<!non-)(?<!non\s)(?<!other\s)current\s+assets\s*[:\s]*(?:rs\.?|inr|₹)?[\s,]*([\d,]+(?:\.\d+)?)/i]));
+  if (!fixedAssets) fixedAssets = cleanFloat(srch(text, [/(?:fixed assets|net fixed assets|non-current assets)\s*[:\s]*(?:rs\.?|inr|₹)?[\s,]*([\d,]+(?:\.\d+)?)/i]));
+  if (!currentLiabilities) currentLiabilities = cleanFloat(srch(text, [/(?<!non-)(?<!non\s)(?<!other\s)current\s+liabilities\s*[:\s]*(?:rs\.?|inr|₹)?[\s,]*([\d,]+(?:\.\d+)?)/i]));
+  if (!longTermDebt) longTermDebt = cleanFloat(srch(text, [/(?:long-term debt|secured loans|non-current liabilities)\s*[:\s]*(?:rs\.?|inr|₹)?[\s,]*([\d,]+(?:\.\d+)?)/i]));
+  if (!equity) {
+    equity = cleanFloat(srch(text, [
+      /net\s*worth\b.*?\b([\d,]+\.\d{2})/i,
+      /total\s*equity\b.*?\b([\d,]+\.\d{2})/i,
+      /net\s*worth\s*(?:in\s*crores)?\??\s*([\d,]+\.\d{2})/i,
+      /total\s*equity\s*[:\s]*([\d,]+(?:\.\d+)?)/i
+    ]));
+  }
+
+  let inventory = null;
+  for (let i = 0; i < bsLines.length; i++) {
+    let lineClean = bsLines[i].trim();
+    if (/inventories|inventory|stock-in-trade|stock in trade/i.test(lineClean)) {
+      let nums = lineClean.match(/[\d,]+\.\d{2}/g);
+      if (nums && nums.length >= 1) {
+        inventory = cleanFloat(nums[0]);
+        break;
+      }
+    }
+  }
+  if (!inventory) {
+    inventory = cleanFloat(srch(text, [/(?:inventories|inventory|stock\-in\-trade|stock in trade)\s*[:\s]*(?:rs\.?|inr|₹)?[\s,]*([\d,]+(?:\.\d+)?)/i]));
+  }
+  if (!inventory) inventory = 0;
+
+  d.currentAssets = currentAssets;
+  d.inventory = inventory;
+  d.fixedAssets = fixedAssets;
+  d.currentLiabilities = currentLiabilities;
+  d.longTermDebt = longTermDebt;
+  d.equity = equity;
+
+  d.cogs = cleanFloat(srch(text, [
+    /cost\s*of\s*materials\s*consumed\s+([\d,]+\.\d{2})/i,
+    /(?:cogs|cost of goods sold)[\s:]+(?:rs\.?|inr|₹)?[\s,]*([\d,]+(?:\.\d+)?)/i
+  ]));
+  d.opex = cleanFloat(srch(text, [
+    /other\s*expenses\s+([\d,]+\.\d{2})/i,
+    /(?:opex|operating expenses|administrative)[\s:]+(?:rs\.?|inr|₹)?[\s,]*([\d,]+(?:\.\d+)?)/i
+  ]));
+
+// Multi-year P&L Detection
+  let yearsDetected = [];
+  let yearHeaderIdx = -1;
+  for (let i = 0; i < Math.min(lines.length, 50); i++) {
+    let matches = lines[i].match(/\b(20[1-2]\d|FY[1-2]\d)\b/gi);
+    if (matches && matches.length >= 2) {
+      let cleaned = matches.map(m => {
+        if (m.toUpperCase().startsWith('FY')) return parseInt(m.substring(2)) + 2000;
+        return parseInt(m);
+      });
+      yearsDetected = Array.from(new Set(cleaned)).sort((a,b)=>a-b);
+      yearHeaderIdx = i;
+      break;
+    }
+  }
+  if (yearsDetected.length === 0) yearsDetected = [2022, 2023];
+
+  let yearMap = {};
+  yearsDetected.forEach(yr => {
+    yearMap[yr] = { revenue: null, netProfit: null, ebitda: null, ocf: null };
+  });
+
+  // Extract year columns positions from header
+  let yearTokens = [];
+  if (yearHeaderIdx !== -1) {
+    let headerLine = lines[yearHeaderIdx];
+    let tokens = headerLine.trim().split(/\s+/);
+    for (let token of tokens) {
+      let m = token.match(/(20[1-2]\d|FY[1-2]\d)/i);
+      if (m) {
+        let yrVal = m[1].toUpperCase().startsWith('FY') ? parseInt(m[1].substring(2)) + 2000 : parseInt(m[1]);
+        yearTokens.push(yrVal);
+      }
+    }
+  }
+  if (yearTokens.length === 0) {
+    yearTokens = [...yearsDetected].sort((a,b)=>b-a);
+  }
+
+  // Heuristic mapping function for clean P&L column alignment
+  function mapNumsToYears(parsedNums, key) {
+    if (parsedNums.length === yearTokens.length) {
+      for (let idx = 0; idx < yearTokens.length; idx++) {
+        let yr = yearTokens[idx];
+        if (yearMap[yr] !== undefined) {
+          yearMap[yr][key] = parsedNums[idx];
+        }
+      }
+    } else if (parsedNums.length === yearsDetected.length) {
+      let sortedDesc = [...yearsDetected].sort((a,b)=>b-a);
+      for (let idx = 0; idx < sortedDesc.length; idx++) {
+        let yr = sortedDesc[idx];
+        if (yearMap[yr] !== undefined) {
+          yearMap[yr][key] = parsedNums[idx];
+        }
+      }
+    } else if (parsedNums.length >= yearTokens.length) {
+      let offset = parsedNums.length - yearTokens.length;
+      for (let idx = 0; idx < yearTokens.length; idx++) {
+        let yr = yearTokens[idx];
+        if (yearMap[yr] !== undefined) {
+          yearMap[yr][key] = parsedNums[offset + idx];
+        }
+      }
+    } else if (parsedNums.length >= 2) {
+      let sortedDesc = [...yearsDetected].sort((a,b)=>b-a);
+      for (let idx = 0; idx < sortedDesc.length; idx++) {
+        let yr = sortedDesc[idx];
+        if (idx < parsedNums.length && yearMap[yr] !== undefined) {
+          yearMap[yr][key] = parsedNums[idx];
+        }
+      }
+    }
+  }
+
+  // Highly robust, OCR-resilient row matching rules with dynamic mapping
+  for (let line of lines) {
+    let lineClean = line.trim();
+    if (!lineClean) continue;
+    let nums = lineClean.match(/[\d,]+\.\d{2}|\([\d,]+\.\d{2}\)|\[[\d,]+\.\d{2}\]/g);
+    if (!nums || nums.length < 2) continue;
+    let parsedNums = nums.map(n => cleanFloat(n)).filter(n => n !== null && Math.abs(n) > 10.0);
+    if (parsedNums.length < 2) continue;
+
+    // 1. Revenue
+    if (/revenue from operations|total revenue from operations|turnover|sales/i.test(lineClean)) {
+      if (!/other|margin/i.test(lineClean) && !lineClean.includes('%')) {
+        mapNumsToYears(parsedNums, 'revenue');
+      }
+    }
+
+    // 2. Net Profit
+    if (/profit|profitiloss|profit\/loss|profit{loss/i.test(lineClean)) {
+      if (/period|year|yaar|periad|after tax|pat/i.test(lineClean) && !/before|discontinued|continuing operations|exceptional/i.test(lineClean)) {
+        mapNumsToYears(parsedNums, 'netProfit');
+      }
+    }
+
+    // 3. OCF
+    if (/cash/i.test(lineClean) && (/operating/i.test(lineClean) || /operations/i.test(lineClean))) {
+      if (/activities|activitles|generated/i.test(lineClean)) {
+        mapNumsToYears(parsedNums, 'ocf');
+      }
+    }
+  }
+
+  // Calculate EBITDA
+  yearsDetected.forEach(yr => {
+    if (yearMap[yr].ebitda === null) {
+      let pbt = null, finance = null, depr = null;
+      for (let line of lines) {
+        let nums = line.match(/[\d,]+\.\d{2}|\([\d,]+\.\d{2}\)|\[[\d,]+\.\d{2}\]/g);
+        if (!nums) continue;
+        let parsedNums = nums.map(n => cleanFloat(n)).filter(n => n !== null && Math.abs(n) > 10.0);
+
+        // Align values
+        let valYr = null;
+        if (parsedNums.length === yearTokens.length) {
+          for (let idxYr = 0; idxYr < yearTokens.length; idxYr++) {
+            if (yearTokens[idxYr] === yr) valYr = parsedNums[idxYr];
+          }
+        } else if (parsedNums.length === yearsDetected.length) {
+          let sortedDesc = [...yearsDetected].sort((a,b)=>b-a);
+          for (let idxYr = 0; idxYr < sortedDesc.length; idxYr++) {
+            if (sortedDesc[idxYr] === yr) valYr = parsedNums[idxYr];
+          }
+        } else if (parsedNums.length >= yearTokens.length) {
+          let offset = parsedNums.length - yearTokens.length;
+          for (let idxYr = 0; idxYr < yearTokens.length; idxYr++) {
+            if (yearTokens[idxYr] === yr) valYr = parsedNums[offset + idxYr];
+          }
+        } else if (parsedNums.length >= 2) {
+          let sortedDesc = [...yearsDetected].sort((a,b)=>b-a);
+          for (let idxYr = 0; idxYr < sortedDesc.length; idxYr++) {
+            if (sortedDesc[idxYr] === yr && idxYr < parsedNums.length) valYr = parsedNums[idxYr];
+          }
+        }
+
+        if (valYr !== null) {
+          if (/profit/i.test(line) && /before/i.test(line) && /tax/i.test(line) && /exceptional/i.test(line)) {
+            pbt = valYr;
+          }
+          else if (/finance costs/i.test(line)) {
+            finance = valYr;
+          }
+          else if (/depreciation/i.test(line) && /amort/i.test(line)) {
+            depr = valYr;
+          }
+        }
+      }
+      if (pbt !== null && finance !== null && depr !== null) {
+        yearMap[yr].ebitda = pbt + finance + depr;
+      }
+    }
+  });
+
+  const sortedYears = yearsDetected.sort((a,b)=>a-b);
+  const y3Yr = sortedYears[sortedYears.length-1] || null;
+  const y2Yr = sortedYears[sortedYears.length-2] || null;
+  const y1Yr = sortedYears[sortedYears.length-3] || null;
+
+  d.y3 = y3Yr ? yearMap[y3Yr] : {revenue:null,netProfit:null,ebitda:null,ocf:null};
+  d.y2 = y2Yr ? yearMap[y2Yr] : {revenue:null,netProfit:null,ebitda:null,ocf:null};
+  d.y1 = y1Yr ? yearMap[y1Yr] : {revenue:null,netProfit:null,ebitda:null,ocf:null};
+
+  return d;
+}
+
+/* ═══════════════════════════════════════
+   FORM POPULATION + HIGHLIGHTING
+═══════════════════════════════════════ */
+const FIELD_MAP = {
+  'inputBusinessType':       {id:'lb-businessType'},
+  'inputNatureOfBusiness':   {id:'lb-natureOfBusiness'},
+  'inputCibil':              {id:'lb-cibil'},
+  'inputProposedLoan':       {id:'lb-proposedLoan'},
+  'inputProposedEMI':        {id:'lb-proposedEMI'},
+  'inputMonthlyIncome':      {id:'lb-monthlyIncome'},
+  'inputExistingEMI':        {id:'lb-existingEMI'},
+  'inputCurrentAssets':      {id:'lb-currentAssets'},
+  'inputInventory':          {id:'lb-inventory'},
+  'inputFixedAssets':        {id:'lb-fixedAssets'},
+  'inputCurrentLiabilities': {id:'lb-currentLiabilities'},
+  'inputLongTermDebt':       {id:'lb-longTermDebt'},
+  'inputEquity':             {id:'lb-equity'},
+  'inputY1Revenue':          {id:'lb-Y1Revenue'},
+  'inputY1NetProfit':        {id:'lb-Y1NetProfit'},
+  'inputY1Ebitda':           {id:'lb-Y1Ebitda'},
+  'inputY1Ocf':              {id:'lb-Y1Ocf'},
+  'inputY2Revenue':          {},
+  'inputY2NetProfit':        {},
+  'inputY2Ebitda':           {},
+  'inputY2Ocf':              {},
+  'inputY3Revenue':          {},
+  'inputY3NetProfit':        {},
+  'inputY3Ebitda':           {},
+  'inputY3Ocf':              {},
+};
+
+function populateForm(data, summaries) {
+  // Clear old highlights
+  S.extractedFields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('ext');
+    const lbl = document.getElementById(FIELD_MAP[id]?.id);
+    if (lbl) { const b=lbl.querySelector('.ai-badge'); if(b)b.remove(); }
+  });
+  S.extractedFields = [];
+
+  // Reset all fields to empty string
+  Object.keys(FIELD_MAP).forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+
+  const VALUES = {
+    inputBusinessType: data.businessType,
+    inputNatureOfBusiness: data.natureOfBusiness,
+    inputCibil: data.cibil,
+    inputProposedLoan: data.proposedLoan,
+    inputProposedEMI: data.proposedEMI,
+    inputMonthlyIncome: data.monthlyIncome,
+    inputExistingEMI: data.existingEMI,
+    inputCurrentAssets: data.currentAssets,
+    inputInventory: data.inventory,
+    inputFixedAssets: data.fixedAssets,
+    inputCurrentLiabilities: data.currentLiabilities,
+    inputLongTermDebt: data.longTermDebt,
+    inputEquity: data.equity,
+    inputY1Revenue: data.y1?.revenue,
+    inputY1NetProfit: data.y1?.netProfit,
+    inputY1Ebitda: data.y1?.ebitda,
+    inputY1Ocf: data.y1?.ocf,
+    inputY2Revenue: data.y2?.revenue,
+    inputY2NetProfit: data.y2?.netProfit,
+    inputY2Ebitda: data.y2?.ebitda,
+    inputY2Ocf: data.y2?.ocf,
+    inputY3Revenue: data.y3?.revenue,
+    inputY3NetProfit: data.y3?.netProfit,
+    inputY3Ebitda: data.y3?.ebitda,
+    inputY3Ocf: data.y3?.ocf,
+  };
+
+  for (const [id, val] of Object.entries(VALUES)) {
+    if (val === undefined || val === null) continue;
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.value = val;
+    el.classList.add('ext');
+    S.extractedFields.push(id);
+    // Add AI badge to label
+    const lblId = FIELD_MAP[id]?.id;
+    if (lblId) {
+      const lbl = document.getElementById(lblId);
+      if (lbl && !lbl.querySelector('.ai-badge')) {
+        const b = document.createElement('span');
+        b.className = 'ai-badge';
+        b.innerHTML = '<i class="fas fa-robot" style="font-size:.62rem;"></i> AI';
+        lbl.appendChild(b);
+      }
+    }
+  }
+  buildDocPages(summaries);
+  log(`Populated ${S.extractedFields.length} fields from extraction.`,'ok');
+}
+
+function buildDocPages(summaries) {
+  if (!summaries?.length) return;
+  document.getElementById('dpList').innerHTML = summaries.map((s,i) => `
+    <div class="dp-thumb ${i===0?'active':''}" onclick="document.querySelectorAll('.dp-thumb').forEach(e=>e.classList.remove('active'));this.classList.add('active');">
+      <div class="dp-num">${i+1}</div>
+      <div class="dp-inf">
+        <div class="dp-n">${s.name||'File '+(i+1)}</div>
+        <div class="dp-c">${(s.chars||0).toLocaleString()} chars · ${s.type||'Doc'}</div>
+      </div>
+      <i class="fas fa-${s.status==='done'?'check-circle" style="color:var(--ok)':'exclamation-circle" style="color:var(--warn)'}"></i>
+    </div>`).join('');
+}
+
+/* ═══════════════════════════════════════
+   ANALYSIS ENGINE
+═══════════════════════════════════════ */
+async function runAnalysis() {
+  showOverlay('calculator','Running Credit Analysis','Computing financial ratios, credit score, and recommendation...', ANA_STAGES);
+  activateStep(4);
+
+  // Collect form values
+  const D = {
+    cibil: +document.getElementById('inputCibil').value||0,
+    proposedLoan: +document.getElementById('inputProposedLoan').value||0,
+    proposedEMI: +document.getElementById('inputProposedEMI').value||0,
+    monthlyIncome: +document.getElementById('inputMonthlyIncome').value||0,
+    existingEMI: +document.getElementById('inputExistingEMI').value||0,
+    currentAssets: +document.getElementById('inputCurrentAssets').value||0,
+    inventory: +document.getElementById('inputInventory').value||0,
+    fixedAssets: +document.getElementById('inputFixedAssets').value||0,
+    currentLiabilities: +document.getElementById('inputCurrentLiabilities').value||0,
+    longTermDebt: +document.getElementById('inputLongTermDebt').value||0,
+    equity: +document.getElementById('inputEquity').value||0,
+    y1:{revenue:+document.getElementById('inputY1Revenue').value||0,netProfit:+document.getElementById('inputY1NetProfit').value||0,ebitda:+document.getElementById('inputY1Ebitda').value||0,ocf:+document.getElementById('inputY1Ocf').value||0},
+    y2:{revenue:+document.getElementById('inputY2Revenue').value||0,netProfit:+document.getElementById('inputY2NetProfit').value||0,ebitda:+document.getElementById('inputY2Ebitda').value||0,ocf:+document.getElementById('inputY2Ocf').value||0},
+    y3:{revenue:+document.getElementById('inputY3Revenue').value||0,netProfit:+document.getElementById('inputY3NetProfit').value||0,ebitda:+document.getElementById('inputY3Ebitda').value||0,ocf:+document.getElementById('inputY3Ocf').value||0},
+  };
+
+  // Animate stages
+  for (let i = 0; i < ANA_STAGES.length; i++) {
+    setStage(i, ANA_STAGES);
+    setProgress((i+1)/ANA_STAGES.length*100, ANA_STAGES[i].t);
+    await sleep(680);
+  }
+
+  const R = compute(D);
+  S.analysis = R;
+  setProgress(100,'Done!');
+  await sleep(500);
+  hideOverlay();
+  renderResults(D, R);
+  goPage(2);
+  toast('ok','Analysis Complete!','Credit score and recommendation ready.');
+  log('Credit analysis completed.','ok');
+}
+
+function compute(D) {
+  const R = {};
+  R.currentRatio = D.currentAssets / (D.currentLiabilities||1);
+  R.quickRatio = (D.currentAssets - (D.inventory||0)) / (D.currentLiabilities||1);
+  const totalDebt = (D.currentLiabilities||0) + (D.longTermDebt||0);
+  R.deRatio = totalDebt / (D.equity||1);
+  R.daRatio = totalDebt / ((D.currentAssets+D.fixedAssets)||1);
+  R.icRatio = D.y3.ebitda / (D.y3.revenue*0.02||100000);
+  R.netMargin = (D.y3.netProfit/(D.y3.revenue||1))*100;
+  R.ebitdaMargin = (D.y3.ebitda/(D.y3.revenue||1))*100;
+  R.roe = (D.y3.netProfit/(D.equity||1))*100;
+  R.roa = (D.y3.netProfit/((D.currentAssets+D.fixedAssets)||1))*100;
+  R.foir = ((D.existingEMI+D.proposedEMI)/(D.monthlyIncome||1))*100;
+  R.dscr = D.monthlyIncome/((D.existingEMI+D.proposedEMI)||1);
+  R.pti = (D.proposedEMI/(D.monthlyIncome||1))*100;
+  R.revG12 = ((D.y2.revenue-D.y1.revenue)/(D.y1.revenue||1))*100;
+  R.revG23 = ((D.y3.revenue-D.y2.revenue)/(D.y2.revenue||1))*100;
+
+  // Score (100 pts)
+  let sc = 0;
+  if (D.cibil>=800) sc+=25; else if (D.cibil>=750) sc+=20; else if (D.cibil>=700) sc+=15; else if (D.cibil>=650) sc+=8;
+  if (R.foir<=30) sc+=20; else if (R.foir<=40) sc+=15; else if (R.foir<=50) sc+=10; else if (R.foir<=60) sc+=5;
+  if (R.currentRatio>=2) sc+=15; else if (R.currentRatio>=1.5) sc+=12; else if (R.currentRatio>=1.2) sc+=8; else if (R.currentRatio>=1) sc+=4;
+  if (R.deRatio<=0.5) sc+=15; else if (R.deRatio<=1) sc+=12; else if (R.deRatio<=1.5) sc+=8; else if (R.deRatio<=2) sc+=4;
+  if (R.netMargin>=20) sc+=15; else if (R.netMargin>=15) sc+=12; else if (R.netMargin>=10) sc+=8; else if (R.netMargin>=5) sc+=4;
+  if (R.revG23>=15) sc+=10; else if (R.revG23>=10) sc+=8; else if (R.revG23>=5) sc+=5; else if (R.revG23>=0) sc+=2;
+  R.score = Math.min(100, sc);
+
+  if (sc>=70){ R.rec='ra'; R.recTag='APPROVED'; R.recH='Loan Approved'; R.recP='Strong financial profile. Meets all credit criteria — good CIBIL, manageable leverage, positive revenue trend.'; }
+  else if (sc>=50){ R.rec='rr'; R.recTag='CONDITIONAL REVIEW'; R.recH='Manual Review Required'; R.recP='Moderate risk profile. Recommend additional documentation or collateral. Underwriter review advised.'; }
+  else { R.rec='rd'; R.recTag='DECLINED'; R.recH='Loan Declined'; R.recP='Profile does not meet minimum credit standards due to weak metrics. Re-apply after improving financial standing.'; }
+  return R;
+}
+
+/* ═══════════════════════════════════════
+   RENDER RESULTS
+═══════════════════════════════════════ */
+function renderResults(D, R) {
+  document.getElementById('navScore').textContent = R.score;
+  // KPIs
+  setKpi('kScore',   R.score,        '/100', R.score>=70?'ok':R.score>=50?'warn':'bad',  R.score>=70?'Meets criteria':R.score>=50?'Borderline':'Below threshold');
+  setKpi('kCR',      R.currentRatio.toFixed(2),'x', R.currentRatio>=1.5?'ok':R.currentRatio>=1?'warn':'bad','Benchmark: ≥ 1.5x');
+  setKpi('kFOIR',    R.foir.toFixed(1)+'%','', R.foir<=40?'ok':R.foir<=55?'warn':'bad','Benchmark: ≤ 40%');
+  setKpi('kDE',      R.deRatio.toFixed(2),'x', R.deRatio<=1?'ok':R.deRatio<=1.5?'warn':'bad','Benchmark: ≤ 1.0x');
+  setKpi('kNM',      R.netMargin.toFixed(1)+'%','', R.netMargin>=15?'ok':R.netMargin>=8?'warn':'bad','Net Margin (Y3)');
+  setKpi('kDSCR',    R.dscr.toFixed(2),'x', R.dscr>=1.25?'ok':R.dscr>=1?'warn':'bad','Benchmark: ≥ 1.25x');
+
+  // Score ring
+  document.getElementById('scoreBig').textContent = R.score;
+  const c = 2*Math.PI*64;
+  document.getElementById('scoreRing').style.strokeDashoffset = c - (R.score/100)*c;
+  const rb = document.getElementById('riskBadge');
+  if (R.score>=70){ rb.style.background='rgba(16,185,129,.15)'; rb.style.color='var(--ok)'; rb.textContent='LOW RISK'; }
+  else if (R.score>=50){ rb.style.background='rgba(245,158,11,.15)'; rb.style.color='var(--warn)'; rb.textContent='MEDIUM RISK'; }
+  else { rb.style.background='rgba(239,68,68,.15)'; rb.style.color='var(--err)'; rb.textContent='HIGH RISK'; }
+
+  // Recommendation
+  const recCard = document.getElementById('recCard');
+  recCard.className = 'rec-c '+R.rec;
+  const ICONS={ra:'thumbs-up',rr:'exclamation-triangle',rd:'times-circle'};
+  document.getElementById('recIco').className='fas fa-'+ICONS[R.rec];
+  const CLRS={ra:'var(--ok)',rr:'var(--warn)',rd:'var(--err)'};
+  document.getElementById('recTag').textContent=R.recTag; document.getElementById('recTag').style.color=CLRS[R.rec];
+  document.getElementById('recH').textContent=R.recH;
+  document.getElementById('recP').textContent=R.recP;
+
+  // Ratio grid
+  buildRatios(R);
+  // Charts
+  buildCharts(D);
+}
+
+function setKpi(id, val, suf, cls, hint) {
+  const v=document.getElementById(id); if(v) v.textContent=val+(suf||'');
+  const s=document.getElementById(id+'St');
+  if(s){ s.className='kpi-st '+cls; s.innerHTML=`<i class="fas fa-${cls==='ok'?'arrow-up':cls==='bad'?'arrow-down':'minus'}"></i> ${hint}`; }
+}
+
+function buildRatios(R) {
+  const RATIOS = [
+    {n:'Current Ratio',v:R.currentRatio,f:'x',bm:'≥ 1.5',ok:R.currentRatio>=1.5,warn:R.currentRatio>=1.2,pct:Math.min(100,R.currentRatio/2*100)},
+    {n:'Quick Ratio',v:R.quickRatio,f:'x',bm:'≥ 1.0',ok:R.quickRatio>=1.0,warn:R.quickRatio>=0.8,pct:Math.min(100,R.quickRatio/1.5*100)},
+    {n:'Debt / Equity',v:R.deRatio,f:'x',bm:'≤ 1.0',ok:R.deRatio<=1,warn:R.deRatio<=1.5,pct:Math.max(0,Math.min(100,(1-R.deRatio/3)*100))},
+    {n:'Interest Coverage',v:R.icRatio,f:'x',bm:'≥ 3.0',ok:R.icRatio>=3,warn:R.icRatio>=2,pct:Math.min(100,R.icRatio/5*100)},
+    {n:'Net Margin (Y3)',v:R.netMargin,f:'%',bm:'≥ 15%',ok:R.netMargin>=15,warn:R.netMargin>=8,pct:Math.min(100,R.netMargin/20*100)},
+    {n:'EBITDA Margin',v:R.ebitdaMargin,f:'%',bm:'≥ 20%',ok:R.ebitdaMargin>=20,warn:R.ebitdaMargin>=12,pct:Math.min(100,R.ebitdaMargin/25*100)},
+    {n:'ROE',v:R.roe,f:'%',bm:'≥ 15%',ok:R.roe>=15,warn:R.roe>=8,pct:Math.min(100,R.roe/20*100)},
+    {n:'FOIR',v:R.foir,f:'%',bm:'≤ 40%',ok:R.foir<=40,warn:R.foir<=55,pct:Math.max(0,Math.min(100,(1-R.foir/100)*100))},
+    {n:'DSCR',v:R.dscr,f:'x',bm:'≥ 1.25',ok:R.dscr>=1.25,warn:R.dscr>=1,pct:Math.min(100,R.dscr/2*100)},
+    {n:'ROA',v:R.roa,f:'%',bm:'≥ 8%',ok:R.roa>=8,warn:R.roa>=4,pct:Math.min(100,R.roa/12*100)},
+    {n:'Rev Growth Y2→Y3',v:R.revG23,f:'%',bm:'≥ 10%',ok:R.revG23>=10,warn:R.revG23>=5,pct:Math.min(100,Math.max(0,(R.revG23+10)/30*100))},
+    {n:'PTI',v:R.pti,f:'%',bm:'≤ 25%',ok:R.pti<=25,warn:R.pti<=35,pct:Math.max(0,Math.min(100,(1-R.pti/100)*100))},
+  ];
+  document.getElementById('ratioGrid').innerHTML = RATIOS.map(r=>{
+    const cls=r.ok?'ok':r.warn?'warn':'bad';
+    return `<div class="ratio-c">
+      <div class="rn">${r.n}</div>
+      <div class="rv ${cls}">${r.v.toFixed(2)}${r.f}</div>
+      <div class="rb-track"><div class="rb-fill ${cls}" style="width:${Math.max(0,r.pct).toFixed(1)}%"></div></div>
+      <div class="rbm">Benchmark: ${r.bm}</div>
+    </div>`;
+  }).join('');
+}
+
+function buildCharts(D) {
+  const CFG_AXES = {
+    x:{ticks:{color:'#94A3B8'},grid:{color:'rgba(255,255,255,.04)'}},
+    y:{ticks:{color:'#94A3B8'},grid:{color:'rgba(255,255,255,.04)'}}
+  };
+  if(charts.rev)charts.rev.destroy();
+  charts.rev = new Chart(document.getElementById('chRev'),{
+    type:'bar',
+    data:{
+      labels:['Year 1','Year 2','Year 3'],
+      datasets:[
+        {label:'Revenue',data:[D.y1.revenue,D.y2.revenue,D.y3.revenue].map(v=>+(v/1e5).toFixed(1)),backgroundColor:'rgba(99,102,241,.75)',borderRadius:7},
+        {label:'Net Profit',data:[D.y1.netProfit,D.y2.netProfit,D.y3.netProfit].map(v=>+(v/1e5).toFixed(1)),backgroundColor:'rgba(16,185,129,.75)',borderRadius:7},
+        {label:'EBITDA',data:[D.y1.ebitda,D.y2.ebitda,D.y3.ebitda].map(v=>+(v/1e5).toFixed(1)),backgroundColor:'rgba(245,158,11,.72)',borderRadius:7},
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#94A3B8',font:{size:11}}}},scales:{...CFG_AXES,y:{...CFG_AXES.y,ticks:{...CFG_AXES.y.ticks,callback:v=>'₹'+v+'L'}}}}
+  });
+  if(charts.bal)charts.bal.destroy();
+  charts.bal = new Chart(document.getElementById('chBal'),{
+    type:'doughnut',
+    data:{
+      labels:['Current Assets','Fixed Assets','Curr Liabilities','Long-Term Debt','Equity'],
+      datasets:[{
+        data:[D.currentAssets,D.fixedAssets,D.currentLiabilities,D.longTermDebt,D.equity].map(v=>+(v/1e5).toFixed(1)),
+        backgroundColor:['rgba(99,102,241,.82)','rgba(139,92,246,.78)','rgba(239,68,68,.7)','rgba(245,158,11,.7)','rgba(16,185,129,.8)'],
+        borderWidth:0,hoverOffset:8
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'right',labels:{color:'#94A3B8',font:{size:10},boxWidth:11}}}}
+  });
+}
+
+/* ═══════════════════════════════════════
+   REPORT DOWNLOAD
+═══════════════════════════════════════ */
+function dlReport(fmt) {
+  const R=S.analysis||{}, D=S.extractedData||{};
+  if (fmt==='json') {
+    const blob=new Blob([JSON.stringify({extractedData:D,analysis:R,generatedAt:new Date().toISOString()},null,2)],{type:'application/json'});
+    dl(blob,'credit_analysis.json'); toast('ok','Downloaded','JSON report saved.');
+    return;
+  }
+  if (fmt==='csv') {
+    const rows=[
+      ['AI Credit Analysis Report'],['Generated',new Date().toLocaleString()],[],
+      ['Metric','Value','Benchmark','Status'],
+      ['Credit Score',R.score||'—','/100',R.score>=70?'PASS':R.score>=50?'REVIEW':'FAIL'],
+      ['Current Ratio',(R.currentRatio||0).toFixed(2)+'x','≥ 1.5x',R.currentRatio>=1.5?'GOOD':'WEAK'],
+      ['D/E Ratio',(R.deRatio||0).toFixed(2)+'x','≤ 1.0x',R.deRatio<=1?'GOOD':'WEAK'],
+      ['Net Margin',(R.netMargin||0).toFixed(2)+'%','≥ 15%',R.netMargin>=15?'GOOD':'WEAK'],
+      ['FOIR',(R.foir||0).toFixed(2)+'%','≤ 40%',R.foir<=40?'GOOD':'WEAK'],
+      ['DSCR',(R.dscr||0).toFixed(2)+'x','≥ 1.25x',R.dscr>=1.25?'GOOD':'WEAK'],
+      ['EBITDA Margin',(R.ebitdaMargin||0).toFixed(2)+'%','≥ 20%',R.ebitdaMargin>=20?'GOOD':'WEAK'],
+      ['ROE',(R.roe||0).toFixed(2)+'%','≥ 15%',R.roe>=15?'GOOD':'WEAK'],
+      [],[`Recommendation: ${R.recTag||'—'}`],
+    ];
+    const blob=new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'});
+    dl(blob,'credit_analysis.csv'); toast('ok','Downloaded','CSV report saved.');
+    return;
+  }
+  // PDF via print
+  const w=window.open('','_blank');
+  const pc=R.score>=70?'#D1FAE5':R.score>=50?'#FEF3C7':'#FEE2E2';
+  const tc=R.score>=70?'#065F46':R.score>=50?'#92400E':'#991B1B';
+  w.document.write(`<html><head><title>Credit Analysis Report</title>
+  <style>body{font-family:Arial,sans-serif;padding:40px;color:#111;max-width:1000px;margin:0 auto;}
+  h1{color:#4F46E5;border-bottom:3px solid #4F46E5;padding-bottom:10px;margin-bottom:24px;}
+  h2{color:#374151;margin-top:28px;margin-bottom:14px;font-size:1.1rem;}
+  table{width:100%;border-collapse:collapse;margin:12px 0;}
+  th{background:#4F46E5;color:#fff;padding:10px 12px;text-align:left;font-size:.875rem;}
+  td{padding:9px 12px;border:1px solid #E5E7EB;font-size:.875rem;}
+  tr:nth-child(even) td{background:#F9FAFB;}
+  .score{font-size:3.5rem;font-weight:900;color:#4F46E5;}
+  .badge{display:inline-block;padding:7px 20px;border-radius:24px;font-weight:800;font-size:.9rem;background:${pc};color:${tc};}
+  .good{color:#065F46;font-weight:700;}.weak{color:#991B1B;font-weight:700;}
+  </style></head><body>
+  <h1>AI Credit Analysis Report</h1>
+  <p><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+  <h2>Credit Decision</h2>
+  <div class="score">${R.score||'—'}<span style="font-size:1.5rem;color:#9CA3AF;">/100</span></div>
+  <p style="margin:10px 0;"><span class="badge">${R.recTag||'—'}</span></p>
+  <p style="color:#6B7280;margin-top:8px;">${R.recP||''}</p>
+  <h2>Financial Ratios</h2>
+  <table><tr><th>Metric</th><th>Value</th><th>Benchmark</th><th>Status</th></tr>
+  <tr><td>Current Ratio</td><td>${(R.currentRatio||0).toFixed(2)}x</td><td>≥ 1.5x</td><td class="${R.currentRatio>=1.5?'good':'weak'}">${R.currentRatio>=1.5?'GOOD':'WEAK'}</td></tr>
+  <tr><td>Quick Ratio</td><td>${(R.quickRatio||0).toFixed(2)}x</td><td>≥ 1.0x</td><td class="${R.quickRatio>=1.0?'good':'weak'}">${R.quickRatio>=1.0?'GOOD':'WEAK'}</td></tr>
+  <tr><td>Debt / Equity</td><td>${(R.deRatio||0).toFixed(2)}x</td><td>≤ 1.0x</td><td class="${R.deRatio<=1?'good':'weak'}">${R.deRatio<=1?'GOOD':'WEAK'}</td></tr>
+  <tr><td>Net Margin (Y3)</td><td>${(R.netMargin||0).toFixed(2)}%</td><td>≥ 15%</td><td class="${R.netMargin>=15?'good':'weak'}">${R.netMargin>=15?'GOOD':'WEAK'}</td></tr>
+  <tr><td>EBITDA Margin</td><td>${(R.ebitdaMargin||0).toFixed(2)}%</td><td>≥ 20%</td><td class="${R.ebitdaMargin>=20?'good':'weak'}">${R.ebitdaMargin>=20?'GOOD':'WEAK'}</td></tr>
+  <tr><td>FOIR</td><td>${(R.foir||0).toFixed(2)}%</td><td>≤ 40%</td><td class="${R.foir<=40?'good':'weak'}">${R.foir<=40?'GOOD':'WEAK'}</td></tr>
+  <tr><td>DSCR</td><td>${(R.dscr||0).toFixed(2)}x</td><td>≥ 1.25x</td><td class="${R.dscr>=1.25?'good':'weak'}">${R.dscr>=1.25?'GOOD':'WEAK'}</td></tr>
+  <tr><td>ROE</td><td>${(R.roe||0).toFixed(2)}%</td><td>≥ 15%</td><td class="${R.roe>=15?'good':'weak'}">${R.roe>=15?'GOOD':'WEAK'}</td></tr>
+  <tr><td>Rev Growth Y2→Y3</td><td>${(R.revG23||0).toFixed(2)}%</td><td>≥ 10%</td><td class="${R.revG23>=10?'good':'weak'}">${R.revG23>=10?'GOOD':'WEAK'}</td></tr>
+  </table>
+  <h2>Balance Sheet</h2>
+  <table><tr><th>Item</th><th>Amount (₹)</th></tr>
+  <tr><td>Current Assets</td><td>${(D.currentAssets||0).toLocaleString()}</td></tr>
+  <tr><td>Fixed Assets</td><td>${(D.fixedAssets||0).toLocaleString()}</td></tr>
+  <tr><td>Current Liabilities</td><td>${(D.currentLiabilities||0).toLocaleString()}</td></tr>
+  <tr><td>Long-Term Debt</td><td>${(D.longTermDebt||0).toLocaleString()}</td></tr>
+  <tr><td>Equity / Net Worth</td><td>${(D.equity||0).toLocaleString()}</td></tr>
+  </table>
+  </body></html>`);
+  w.document.close();
+  setTimeout(()=>w.print(),500);
+  toast('info','Print Dialog','Save as PDF from your browser print dialog.');
+}
+
+function dl(blob, name){ const u=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u); }
+
+function newAnalysis(){
+  S.files=[]; S.extractedData=null; S.rawText=''; S.extractedFields=[]; S.analysis=null; S.maxStep=0;
+  renderFiles(); document.getElementById('navDocs').textContent='0'; document.getElementById('navScore').textContent='—';
+  document.getElementById('btnExtract').disabled=true;
+  document.getElementById('extBanner').classList.remove('show');
+  document.getElementById('logBox').innerHTML='<div class="log-e"><span class="l-t">[INIT]</span><span class="l-inf"> New analysis started. Upload documents.</span></div>';
+  goPage(0); activateStep(0); S.maxStep=0;
+}
+
+/* ═══════════════════════════════════════
+   TOAST
+═══════════════════════════════════════ */
+const T_ICO={ok:'fa-check-circle',err:'fa-times-circle',warn:'fa-exclamation-triangle',info:'fa-info-circle'};
+function toast(type, title, msg, dur=5000) {
+  const c=document.getElementById('toasts');
+  const el=document.createElement('div');
+  el.className=`toast t-${type}`;
+  el.innerHTML=`<div class="t-ico"><i class="fas ${T_ICO[type]}"></i></div>
+    <div class="t-body"><div class="t-title">${title}</div><div class="t-msg">${msg}</div></div>
+    <button class="t-close" onclick="rmToast(this.parentElement)"><i class="fas fa-times"></i></button>`;
+  c.appendChild(el);
+  setTimeout(()=>rmToast(el),dur);
+}
+function rmToast(el){ if(!el)return; el.classList.add('removing'); setTimeout(()=>el.remove(),300); }
+
+/* ═══════════════════════════════════════
+   ACTIVITY LOG
+═══════════════════════════════════════ */
+function log(text, type='inf'){
+  const lb=document.getElementById('logBox'); if(!lb)return;
+  const t=new Date().toLocaleTimeString('en-IN',{hour12:false});
+  const e=document.createElement('div'); e.className='log-e';
+  e.innerHTML=`<span class="l-t">[${t}]</span><span class="l-${type}"> ${text}</span>`;
+  lb.appendChild(e); lb.scrollTop=lb.scrollHeight;
+}
+
+/* ═══════════════════════════════════════
+   FINANCIAL REVIEW & TRENDS (NEW)
+═══════════════════════════════════════ */
+function switchFinTab(tabId, el) {
+  el.parentElement.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+  el.classList.add('active');
+  const tabContainer = el.closest('.gc');
+  tabContainer.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  tabContainer.querySelector('#' + tabId).classList.add('active');
+}
+
+function goFinancials() {
+  const D = {
+    cibil: +document.getElementById('inputCibil').value||0,
+    proposedLoan: +document.getElementById('inputProposedLoan').value||0,
+    proposedEMI: +document.getElementById('inputProposedEMI').value||0,
+    monthlyIncome: +document.getElementById('inputMonthlyIncome').value||0,
+    existingEMI: +document.getElementById('inputExistingEMI').value||0,
+    currentAssets: +document.getElementById('inputCurrentAssets').value||0,
+    inventory: +document.getElementById('inputInventory').value||0,
+    fixedAssets: +document.getElementById('inputFixedAssets').value||0,
+    currentLiabilities: +document.getElementById('inputCurrentLiabilities').value||0,
+    longTermDebt: +document.getElementById('inputLongTermDebt').value||0,
+    equity: +document.getElementById('inputEquity').value||0,
+    y1:{
+      revenue: +document.getElementById('inputY1Revenue').value||0,
+      netProfit: +document.getElementById('inputY1NetProfit').value||0,
+      ebitda: +document.getElementById('inputY1Ebitda').value||0,
+      ocf: +document.getElementById('inputY1Ocf').value||0
+    },
+    y2:{
+      revenue: +document.getElementById('inputY2Revenue').value||0,
+      netProfit: +document.getElementById('inputY2NetProfit').value||0,
+      ebitda: +document.getElementById('inputY2Ebitda').value||0,
+      ocf: +document.getElementById('inputY2Ocf').value||0
+    },
+    y3:{
+      revenue: +document.getElementById('inputY3Revenue').value||0,
+      netProfit: +document.getElementById('inputY3NetProfit').value||0,
+      ebitda: +document.getElementById('inputY3Ebitda').value||0,
+      ocf: +document.getElementById('inputY3Ocf').value||0
+    },
+  };
+
+  const formatExact = (v) => v === null || v === undefined || isNaN(v) ? '₹0.00 Cr' : '₹' + Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Cr';
+  const formatPercent = (v) => v.toFixed(1) + '%';
+  
+  // Update key indicators
+  document.getElementById('finRevY3').textContent = formatExact(D.y3.revenue);
+  const revGrowth23 = ((D.y3.revenue - D.y2.revenue) / (D.y2.revenue || 1)) * 100;
+  const revGrowthEl = document.getElementById('finRevGrowth');
+  revGrowthEl.className = 'kpi-st ' + (revGrowth23 >= 0 ? 'ok' : 'bad');
+  revGrowthEl.innerHTML = `<i class="fas fa-arrow-${revGrowth23 >= 0 ? 'up' : 'down'}"></i> ${Math.abs(revGrowth23).toFixed(1)}% YoY`;
+
+  const npmY3 = (D.y3.netProfit / (D.y3.revenue || 1)) * 100;
+  const npmY2 = (D.y2.netProfit / (D.y2.revenue || 1)) * 100;
+  const npmY1 = (D.y1.netProfit / (D.y1.revenue || 1)) * 100;
+  const npmAvg = (npmY1 + npmY2 + npmY3) / 3;
+  document.getElementById('finNPMY3').textContent = formatPercent(npmY3);
+  document.getElementById('finNPMAvg').innerHTML = `<i class="fas fa-chart-line"></i> ${npmAvg.toFixed(1)}% Avg`;
+
+  const currentRatio = D.currentAssets / (D.currentLiabilities || 1);
+  document.getElementById('finCRY3').textContent = currentRatio.toFixed(2) + 'x';
+  const crStatusEl = document.getElementById('finCRStatus');
+  crStatusEl.className = 'kpi-st ' + (currentRatio >= 1.5 ? 'ok' : currentRatio >= 1.0 ? 'warn' : 'bad');
+  crStatusEl.innerHTML = `<i class="fas fa-${currentRatio >= 1.5 ? 'check-circle' : currentRatio >= 1.0 ? 'exclamation-circle' : 'times-circle'}"></i> ${currentRatio >= 1.5 ? 'Good Liquidity' : currentRatio >= 1.0 ? 'Adequate' : 'Weak Liquidity'}`;
+
+  const ocfY1 = D.y1.ocf;
+  const ocfY2 = D.y2.ocf;
+  const ocfY3 = D.y3.ocf;
+  
+  let cfTrend = 'Stable';
+  let cfClass = 'ok';
+  let cfIcon = 'arrow-trend-up';
+  let cfDesc = '';
+  
+  if (ocfY3 > ocfY2 && ocfY2 > ocfY1) {
+    cfTrend = 'Improving';
+    cfClass = 'ok';
+    cfIcon = 'arrow-trend-up';
+    cfDesc = 'Operating Cash Flow shows a consistent year-over-year increase. This is an excellent indicator of working capital efficiency, strong collections, and high quality of earnings.';
+  } else if (ocfY3 < ocfY2 && ocfY2 < ocfY1) {
+    cfTrend = 'Declining';
+    cfClass = 'bad';
+    cfIcon = 'arrow-trend-down';
+    cfDesc = 'Operating Cash Flow is in a persistent downward trend. This flags potential liquidity stress, growing receivables, or operational inefficiencies, despite reported accounting profits.';
+  } else if (ocfY3 > ocfY2 && ocfY2 < ocfY1) {
+    cfTrend = 'Recovering';
+    cfClass = 'warn';
+    cfIcon = 'arrow-up-right-dots';
+    cfDesc = 'Operating Cash Flow dipped in Year 2 but recovered strongly in Year 3. This indicates a positive turnaround in operational cash generation, though past volatility suggests caution.';
+  } else if (ocfY3 < ocfY2 && ocfY2 > ocfY1) {
+    cfTrend = 'Softening';
+    cfClass = 'warn';
+    cfIcon = 'chart-line-down';
+    cfDesc = 'Operating Cash Flow peaked in Year 2 and softened in Year 3. Close monitoring is recommended to check if this is due to inventory buildup or delayed client payments.';
+  } else {
+    cfTrend = 'Volatile';
+    cfClass = 'warn';
+    cfIcon = 'wave-square';
+    cfDesc = 'Operating Cash Flow exhibits high volatility over the 3-year period. Unpredictable operational cash flow complicates debt service planning and flags credit risk.';
+  }
+  
+  document.getElementById('finCFTrendVal').textContent = formatExact(ocfY3);
+  const cfTrendBadge = document.getElementById('finCFTrendBadge');
+  cfTrendBadge.className = 'kpi-st ' + cfClass;
+  cfTrendBadge.innerHTML = `<i class="fas fa-${cfIcon}"></i> ${cfTrend}`;
+
+  // Update Tables
+  // P&L Table
+  document.getElementById('tdPlRevY1').textContent = formatExact(D.y1.revenue);
+  document.getElementById('tdPlRevY2').textContent = formatExact(D.y2.revenue);
+  document.getElementById('tdPlRevY3').textContent = formatExact(D.y3.revenue);
+  document.getElementById('tdPlRevYoY').textContent = revGrowth23.toFixed(1) + '%';
+  document.getElementById('tdPlRevYoY').className = 'num ' + (revGrowth23 >= 0 ? 'l-ok' : 'l-err');
+
+  document.getElementById('tdPlEbitdaY1').textContent = formatExact(D.y1.ebitda);
+  document.getElementById('tdPlEbitdaY2').textContent = formatExact(D.y2.ebitda);
+  document.getElementById('tdPlEbitdaY3').textContent = formatExact(D.y3.ebitda);
+  const ebitdaGrowth23 = ((D.y3.ebitda - D.y2.ebitda) / (D.y2.ebitda || 1)) * 100;
+  document.getElementById('tdPlEbitdaYoY').textContent = ebitdaGrowth23.toFixed(1) + '%';
+  document.getElementById('tdPlEbitdaYoY').className = 'num ' + (ebitdaGrowth23 >= 0 ? 'l-ok' : 'l-err');
+
+  const ebitdaMarY1 = (D.y1.ebitda / (D.y1.revenue || 1)) * 100;
+  const ebitdaMarY2 = (D.y2.ebitda / (D.y2.revenue || 1)) * 100;
+  const ebitdaMarY3 = (D.y3.ebitda / (D.y3.revenue || 1)) * 100;
+  document.getElementById('tdPlEbitdaMarY1').textContent = formatPercent(ebitdaMarY1);
+  document.getElementById('tdPlEbitdaMarY2').textContent = formatPercent(ebitdaMarY2);
+  document.getElementById('tdPlEbitdaMarY3').textContent = formatPercent(ebitdaMarY3);
+  const ebitdaMarDiff = ebitdaMarY3 - ebitdaMarY2;
+  document.getElementById('tdPlEbitdaMarDiff').textContent = (ebitdaMarDiff >= 0 ? '+' : '') + ebitdaMarDiff.toFixed(1) + ' pp';
+  document.getElementById('tdPlEbitdaMarDiff').className = 'num ' + (ebitdaMarDiff >= 0 ? 'l-ok' : 'l-err');
+
+  document.getElementById('tdPlNpY1').textContent = formatExact(D.y1.netProfit);
+  document.getElementById('tdPlNpY2').textContent = formatExact(D.y2.netProfit);
+  document.getElementById('tdPlNpY3').textContent = formatExact(D.y3.netProfit);
+  const npGrowth23 = ((D.y3.netProfit - D.y2.netProfit) / (D.y2.netProfit || 1)) * 100;
+  document.getElementById('tdPlNpYoY').textContent = npGrowth23.toFixed(1) + '%';
+  document.getElementById('tdPlNpYoY').className = 'num ' + (npGrowth23 >= 0 ? 'l-ok' : 'l-err');
+
+  document.getElementById('tdPlNpMarY1').textContent = formatPercent(npmY1);
+  document.getElementById('tdPlNpMarY2').textContent = formatPercent(npmY2);
+  document.getElementById('tdPlNpMarY3').textContent = formatPercent(npmY3);
+  const npmDiff = npmY3 - npmY2;
+  document.getElementById('tdPlNpMarDiff').textContent = (npmDiff >= 0 ? '+' : '') + npmDiff.toFixed(1) + ' pp';
+  document.getElementById('tdPlNpMarDiff').className = 'num ' + (npmDiff >= 0 ? 'l-ok' : 'l-err');
+
+  // P&L AI Text Summary
+  const plSummaryText = document.getElementById('plSummaryText');
+  plSummaryText.innerHTML = `
+    <p>• <strong>YoY Revenue Growth:</strong> Revenue grew by <strong>${revGrowth23.toFixed(1)}%</strong> in the latest fiscal year, moving from ${formatExact(D.y2.revenue)} to ${formatExact(D.y3.revenue)}.</p>
+    <p>• <strong>Profitability Margin:</strong> Latest Net Margin stands at <strong>${npmY3.toFixed(1)}%</strong>. Operating EBITDA Margin of <strong>${ebitdaMarY3.toFixed(1)}%</strong> represents a <strong>${(ebitdaMarDiff >= 0 ? '+' : '') + ebitdaMarDiff.toFixed(1)} percentage point</strong> shift compared to last year.</p>
+    <p>• <strong>Analysis:</strong> ${npmY3 >= 12 ? 'Excellent operational margins with highly profitable operations.' : npmY3 >= 6 ? 'Healthy operational margins within acceptable sector ranges.' : 'Narrow profitability margin; operating costs should be monitored.'}</p>
+  `;
+
+  // Balance Sheet Table
+  const totalAssets = D.currentAssets + D.fixedAssets;
+  const totalLiabEquity = D.currentLiabilities + D.longTermDebt + D.equity;
+  
+  document.getElementById('tdBsCA').textContent = formatExact(D.currentAssets);
+  document.getElementById('tdBsCAPct').textContent = formatPercent((D.currentAssets / (totalAssets || 1)) * 100);
+  
+  document.getElementById('tdBsFA').textContent = formatExact(D.fixedAssets);
+  document.getElementById('tdBsFAPct').textContent = formatPercent((D.fixedAssets / (totalAssets || 1)) * 100);
+  
+  document.getElementById('tdBsTotalAssets').textContent = formatExact(totalAssets);
+  
+  document.getElementById('tdBsCL').textContent = formatExact(D.currentLiabilities);
+  document.getElementById('tdBsCLPct').textContent = formatPercent((D.currentLiabilities / (totalLiabEquity || 1)) * 100);
+  
+  document.getElementById('tdBsLD').textContent = formatExact(D.longTermDebt);
+  document.getElementById('tdBsLDPct').textContent = formatPercent((D.longTermDebt / (totalLiabEquity || 1)) * 100);
+  
+  document.getElementById('tdBsEQ').textContent = formatExact(D.equity);
+  document.getElementById('tdBsEQPct').textContent = formatPercent((D.equity / (totalLiabEquity || 1)) * 100);
+  
+  document.getElementById('tdBsTotalLiabEquity').textContent = formatExact(totalLiabEquity);
+
+  // Balance Sheet AI Summary
+  const bsSummaryText = document.getElementById('bsSummaryText');
+  const deRatio = D.longTermDebt / (D.equity || 1);
+  bsSummaryText.innerHTML = `
+    <p>• <strong>Asset Allocation:</strong> Current Assets represent <strong>${((D.currentAssets / (totalAssets || 1)) * 100).toFixed(1)}%</strong> of total asset size, indicating ${D.currentAssets > D.fixedAssets ? 'high asset liquidity' : 'a capital-intensive business model'}.</p>
+    <p>• <strong>Debt Profile:</strong> Debt to Equity ratio stands at <strong>${deRatio.toFixed(2)}x</strong>. Long term leverage accounts for <strong>${((D.longTermDebt / (totalLiabEquity || 1)) * 100).toFixed(1)}%</strong> of the capital structure.</p>
+    <p>• <strong>Analysis:</strong> ${deRatio <= 1.0 ? 'Capital structure is conservative with moderate debt reliance.' : deRatio <= 1.5 ? 'Moderate debt usage; cash flows are likely sufficient to support leverage.' : 'Higher debt utilization. High debt repayment pressure may exist.'}</p>
+  `;
+
+  // Cash Flow Table
+  document.getElementById('tdCfOcfY1').textContent = formatExact(D.y1.ocf);
+  document.getElementById('tdCfOcfY2').textContent = formatExact(D.y2.ocf);
+  document.getElementById('tdCfOcfY3').textContent = formatExact(D.y3.ocf);
+  const ocfGrowth23 = ((D.y3.ocf - D.y2.ocf) / (D.y2.ocf || 1)) * 100;
+  document.getElementById('tdCfOcfYoY').textContent = ocfGrowth23.toFixed(1) + '%';
+  document.getElementById('tdCfOcfYoY').className = 'num ' + (ocfGrowth23 >= 0 ? 'l-ok' : 'l-err');
+
+  const ocfRevY1 = (D.y1.ocf / (D.y1.revenue || 1)) * 100;
+  const ocfRevY2 = (D.y2.ocf / (D.y2.revenue || 1)) * 100;
+  const ocfRevY3 = (D.y3.ocf / (D.y3.revenue || 1)) * 100;
+  document.getElementById('tdCfOcfRevY1').textContent = formatPercent(ocfRevY1);
+  document.getElementById('tdCfOcfRevY2').textContent = formatPercent(ocfRevY2);
+  document.getElementById('tdCfOcfRevY3').textContent = formatPercent(ocfRevY3);
+  const ocfRevDiff = ocfRevY3 - ocfRevY2;
+  document.getElementById('tdCfOcfRevYoY').textContent = (ocfRevDiff >= 0 ? '+' : '') + ocfRevDiff.toFixed(1) + ' pp';
+  document.getElementById('tdCfOcfRevYoY').className = 'num ' + (ocfRevDiff >= 0 ? 'l-ok' : 'l-err');
+
+  const ocfEbitdaY1 = (D.y1.ocf / (D.y1.ebitda || 1)) * 100;
+  const ocfEbitdaY2 = (D.y2.ocf / (D.y2.ebitda || 1)) * 100;
+  const ocfEbitdaY3 = (D.y3.ocf / (D.y3.ebitda || 1)) * 100;
+  document.getElementById('tdCfOcfEbitdaY1').textContent = formatPercent(ocfEbitdaY1);
+  document.getElementById('tdCfOcfEbitdaY2').textContent = formatPercent(ocfEbitdaY2);
+  document.getElementById('tdCfOcfEbitdaY3').textContent = formatPercent(ocfEbitdaY3);
+  const ocfEbitdaDiff = ocfEbitdaY3 - ocfEbitdaY2;
+  document.getElementById('tdCfOcfEbitdaYoY').textContent = (ocfEbitdaDiff >= 0 ? '+' : '') + ocfEbitdaDiff.toFixed(1) + ' pp';
+  document.getElementById('tdCfOcfEbitdaYoY').className = 'num ' + (ocfEbitdaDiff >= 0 ? 'l-ok' : 'l-err');
+
+  // Trend Card Styling
+  const tcEl = document.getElementById('cfTrendCard');
+  tcEl.className = 'trend-card ' + (cfClass === 'ok' ? 'improving' : cfClass === 'bad' ? 'declining' : 'warning');
+  document.getElementById('cfTrendTitle').textContent = `Cash Flow is ${cfTrend}`;
+  const iconBg = cfClass === 'ok' ? 'var(--ok-s)' : cfClass === 'bad' ? 'var(--err-s)' : 'var(--warn-s)';
+  const iconColor = cfClass === 'ok' ? 'var(--ok)' : cfClass === 'bad' ? 'var(--err)' : 'var(--warn)';
+  document.getElementById('cfTrendIcon').style.background = iconBg;
+  document.getElementById('cfTrendIcon').style.color = iconColor;
+  document.getElementById('cfTrendIcon').innerHTML = `<i class="fas fa-${cfIcon}"></i>`;
+  document.getElementById('cfTrendDesc').innerHTML = cfDesc + ` Operating cash flow grew/declined by <strong>${ocfGrowth23.toFixed(1)}%</strong> over the past year. The OCF-to-Revenue ratio of <strong>${ocfRevY3.toFixed(1)}%</strong> indicates that for every ₹100 of turnover, the company converts ₹${(D.y3.ocf / (D.y3.revenue || 1) * 100).toFixed(0)} into operational cash flow.`;
+
+  // Render P&L Trend Chart (Net Profit & EBITDA Margin Trend Line)
+  if (charts.plTrend) charts.plTrend.destroy();
+  const CFG_AXES = {
+    x:{ticks:{color:'#94A3B8'},grid:{color:'rgba(255,255,255,.04)'}},
+    y:{ticks:{color:'#94A3B8'},grid:{color:'rgba(255,255,255,.04)'}}
+  };
+  
+  charts.plTrend = new Chart(document.getElementById('chPlTrend'), {
+    type: 'line',
+    data: {
+      labels: ['Year 1', 'Year 2', 'Year 3'],
+      datasets: [
+        {
+          label: 'Net Profit (₹ Cr)',
+          data: [D.y1.netProfit, D.y2.netProfit, D.y3.netProfit],
+          borderColor: 'var(--ok)',
+          backgroundColor: 'transparent',
+          borderWidth: 3,
+          tension: 0.2,
+          yAxisID: 'yNetProfit',
+          pointBackgroundColor: 'var(--ok)',
+          pointHoverRadius: 7
+        },
+        {
+          label: 'EBITDA Margin (%)',
+          data: [ebitdaMarY1, ebitdaMarY2, ebitdaMarY3],
+          borderColor: 'var(--p1)',
+          backgroundColor: 'transparent',
+          borderWidth: 3,
+          tension: 0.2,
+          yAxisID: 'yEbitdaMargin',
+          pointBackgroundColor: 'var(--p1)',
+          pointHoverRadius: 7
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, labels: { color: '#94A3B8', boxWidth: 12 } }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#94A3B8' },
+          grid: { color: 'rgba(255,255,255,.04)' }
+        },
+        yNetProfit: {
+          type: 'linear',
+          position: 'left',
+          ticks: {
+            color: '#94A3B8',
+            callback: v => '₹' + v + ' Cr'
+          },
+          grid: { color: 'rgba(255,255,255,.04)' }
+        },
+        yEbitdaMargin: {
+          type: 'linear',
+          position: 'right',
+          ticks: {
+            color: '#94A3B8',
+            callback: v => v.toFixed(1) + '%'
+          },
+          grid: { drawOnChartArea: false }
+        }
+      }
+    }
+  });
+
+  // Render Cash Flow Trend Chart
+  if (charts.cfTrend) charts.cfTrend.destroy();
+  charts.cfTrend = new Chart(document.getElementById('chCfTrend'), {
+    type: 'line',
+    data: {
+      labels: ['Year 1', 'Year 2', 'Year 3'],
+      datasets: [{
+        label: 'Operating Cash Flow (₹ Cr)',
+        data: [ocfY1, ocfY2, ocfY3],
+        borderColor: iconColor,
+        backgroundColor: 'rgba(99, 102, 241, 0.05)',
+        borderWidth: 3,
+        tension: 0.2,
+        fill: true,
+        pointBackgroundColor: iconColor,
+        pointHoverRadius: 7
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        ...CFG_AXES,
+        y: {
+          ...CFG_AXES.y,
+          ticks: {
+            ...CFG_AXES.y.ticks,
+            callback: v => '₹' + v + ' Cr'
+          }
+        }
+      }
+    }
+  });
+
+  goPage(4);
+}
+
+/* ═══════════════════════════════════════
+   RATIOS COMPUTATION & VISUALIZATION (NEW)
+   ═══════════════════════════════════════ */
+function goRatios() {
+  const D = {
+    cibil: +document.getElementById('inputCibil').value||0,
+    proposedLoan: +document.getElementById('inputProposedLoan').value||0,
+    proposedEMI: +document.getElementById('inputProposedEMI').value||0,
+    monthlyIncome: +document.getElementById('inputMonthlyIncome').value||0,
+    existingEMI: +document.getElementById('inputExistingEMI').value||0,
+    currentAssets: +document.getElementById('inputCurrentAssets').value||0,
+    inventory: +document.getElementById('inputInventory').value||0,
+    fixedAssets: +document.getElementById('inputFixedAssets').value||0,
+    currentLiabilities: +document.getElementById('inputCurrentLiabilities').value||0,
+    longTermDebt: +document.getElementById('inputLongTermDebt').value||0,
+    equity: +document.getElementById('inputEquity').value||0,
+    y1:{
+      revenue: +document.getElementById('inputY1Revenue').value||0,
+      netProfit: +document.getElementById('inputY1NetProfit').value||0,
+      ebitda: +document.getElementById('inputY1Ebitda').value||0,
+      ocf: +document.getElementById('inputY1Ocf').value||0
+    },
+    y2:{
+      revenue: +document.getElementById('inputY2Revenue').value||0,
+      netProfit: +document.getElementById('inputY2NetProfit').value||0,
+      ebitda: +document.getElementById('inputY2Ebitda').value||0,
+      ocf: +document.getElementById('inputY2Ocf').value||0
+    },
+    y3:{
+      revenue: +document.getElementById('inputY3Revenue').value||0,
+      netProfit: +document.getElementById('inputY3NetProfit').value||0,
+      ebitda: +document.getElementById('inputY3Ebitda').value||0,
+      ocf: +document.getElementById('inputY3Ocf').value||0
+    },
+  };
+
+  const formatExact = (v) => v === null || v === undefined || isNaN(v) ? '₹0.00 Cr' : '₹' + Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Cr';
+  const formatPercent = (v) => isNaN(v) || !isFinite(v) ? '0.0%' : v.toFixed(1) + '%';
+  const formatRatio = (v) => isNaN(v) || !isFinite(v) ? '0.00x' : v.toFixed(2) + 'x';
+
+  // Populate Year Labels
+  const yrList = S.extractedData?.yearsList || [2022, 2023, 2024];
+  const y1Name = yrList[0] ? 'FY ' + yrList[0] : 'Year 1';
+  const y2Name = yrList[1] ? 'FY ' + yrList[1] : 'Year 2';
+  const y3Name = yrList[2] ? 'FY ' + yrList[2] : 'Year 3 (Latest)';
+  
+  document.getElementById('ratY1Lbl').textContent = y1Name;
+  document.getElementById('ratY2Lbl').textContent = y2Name;
+  document.getElementById('ratY3Lbl').textContent = y3Name;
+
+  // 1. Profitability Ratios
+  const npmY1 = (D.y1.netProfit / (D.y1.revenue || 1)) * 100;
+  const npmY2 = (D.y2.netProfit / (D.y2.revenue || 1)) * 100;
+  const npmY3 = (D.y3.netProfit / (D.y3.revenue || 1)) * 100;
+
+  const ebitdaMarY1 = (D.y1.ebitda / (D.y1.revenue || 1)) * 100;
+  const ebitdaMarY2 = (D.y2.ebitda / (D.y2.revenue || 1)) * 100;
+  const ebitdaMarY3 = (D.y3.ebitda / (D.y3.revenue || 1)) * 100;
+
+  const opMarY1 = ((D.y1.ebitda * 0.85) / (D.y1.revenue || 1)) * 100;
+  const opMarY2 = ((D.y2.ebitda * 0.85) / (D.y2.revenue || 1)) * 100;
+  const opMarY3 = ((D.y3.ebitda * 0.85) / (D.y3.revenue || 1)) * 100;
+
+  document.getElementById('tdRatNpmY1').textContent = formatPercent(npmY1);
+  document.getElementById('tdRatNpmY2').textContent = formatPercent(npmY2);
+  document.getElementById('tdRatNpmY3').textContent = formatPercent(npmY3);
+  document.getElementById('tdRatNpmY3').className = 'num ' + (npmY3 >= 15 ? 'l-ok' : npmY3 >= 8 ? 'l-warn' : 'l-err');
+
+  document.getElementById('tdRatEbitdaMarY1').textContent = formatPercent(ebitdaMarY1);
+  document.getElementById('tdRatEbitdaMarY2').textContent = formatPercent(ebitdaMarY2);
+  document.getElementById('tdRatEbitdaMarY3').textContent = formatPercent(ebitdaMarY3);
+  document.getElementById('tdRatEbitdaMarY3').className = 'num ' + (ebitdaMarY3 >= 20 ? 'l-ok' : ebitdaMarY3 >= 12 ? 'l-warn' : 'l-err');
+
+  document.getElementById('tdRatOpMarY1').textContent = formatPercent(opMarY1);
+  document.getElementById('tdRatOpMarY2').textContent = formatPercent(opMarY2);
+  document.getElementById('tdRatOpMarY3').textContent = formatPercent(opMarY3);
+  document.getElementById('tdRatOpMarY3').className = 'num ' + (opMarY3 >= 15 ? 'l-ok' : opMarY3 >= 8 ? 'l-warn' : 'l-err');
+
+  // 2. Liquidity Ratios
+  const currentRatio = D.currentAssets / (D.currentLiabilities || 1);
+  const quickRatio = (D.currentAssets - D.inventory) / (D.currentLiabilities || 1);
+  document.getElementById('tdRatCRY3').textContent = formatRatio(currentRatio);
+  document.getElementById('tdRatCRY3').className = 'num ' + (currentRatio >= 1.5 ? 'l-ok' : currentRatio >= 1.2 ? 'l-warn' : 'l-err');
+  document.getElementById('tdRatQRY3').textContent = formatRatio(quickRatio);
+  document.getElementById('tdRatQRY3').className = 'num ' + (quickRatio >= 1.0 ? 'l-ok' : quickRatio >= 0.8 ? 'l-warn' : 'l-err');
+
+  // 3. Leverage Ratios
+  const totalDebt = D.currentLiabilities + D.longTermDebt;
+  const deRatio = totalDebt / (D.equity || 1);
+  const totalAssets = D.currentAssets + D.fixedAssets;
+  const debtRatio = (totalDebt / (totalAssets || 1)) * 100;
+  document.getElementById('tdRatDEY3').textContent = formatRatio(deRatio);
+  document.getElementById('tdRatDEY3').className = 'num ' + (deRatio <= 1.0 ? 'l-ok' : deRatio <= 1.5 ? 'l-warn' : 'l-err');
+  document.getElementById('tdRatDRY3').textContent = formatPercent(debtRatio);
+  document.getElementById('tdRatDRY3').className = 'num ' + (debtRatio <= 50 ? 'l-ok' : debtRatio <= 65 ? 'l-warn' : 'l-err');
+
+  // 4. Efficiency Ratios
+  const assetTurnover = D.y3.revenue / (totalAssets || 1);
+  document.getElementById('tdRatATY3').textContent = formatRatio(assetTurnover);
+  document.getElementById('tdRatATY3').className = 'num ' + (assetTurnover >= 1.2 ? 'l-ok' : assetTurnover >= 0.8 ? 'l-warn' : 'l-err');
+
+  // 5. Growth Ratios
+  const revGrowthY2 = ((D.y2.revenue - D.y1.revenue) / (D.y1.revenue || 1)) * 100;
+  const revGrowthY3 = ((D.y3.revenue - D.y2.revenue) / (D.y2.revenue || 1)) * 100;
+  const profitGrowthY2 = ((D.y2.netProfit - D.y1.netProfit) / (D.y1.netProfit || 1)) * 100;
+  const profitGrowthY3 = ((D.y3.netProfit - D.y2.netProfit) / (D.y2.netProfit || 1)) * 100;
+
+  document.getElementById('tdRatRevG2').textContent = formatPercent(revGrowthY2);
+  document.getElementById('tdRatRevG2').className = 'num ' + (revGrowthY2 >= 0 ? 'l-ok' : 'l-err');
+  document.getElementById('tdRatRevG3').textContent = formatPercent(revGrowthY3);
+  document.getElementById('tdRatRevG3').className = 'num ' + (revGrowthY3 >= 0 ? 'l-ok' : 'l-err');
+
+  document.getElementById('tdRatNPGB2').textContent = formatPercent(profitGrowthY2);
+  document.getElementById('tdRatNPGB2').className = 'num ' + (profitGrowthY2 >= 0 ? 'l-ok' : 'l-err');
+  document.getElementById('tdRatNPGB3').textContent = formatPercent(profitGrowthY3);
+  document.getElementById('tdRatNPGB3').className = 'num ' + (profitGrowthY3 >= 0 ? 'l-ok' : 'l-err');
+
+  // AI Summary Card
+  const ratiosSummary = document.getElementById('ratiosSummaryText');
+  ratiosSummary.innerHTML = `
+    <p>• <strong>Profitability Health:</strong> Net Profit Margin moved from <strong>${formatPercent(npmY2)}</strong> to <strong>${formatPercent(npmY3)}</strong>. The Operating Margin of <strong>${formatPercent(opMarY3)}</strong> indicates stable operating efficiency.</p>
+    <p>• <strong>Liquidity Coverage:</strong> Current Ratio is <strong>${formatRatio(currentRatio)}</strong>. Taking out inventory (₹${(D.inventory).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2})} Cr), the Quick Ratio stands at <strong>${formatRatio(quickRatio)}</strong>, indicating ${quickRatio >= 1.0 ? 'strong near-term liquidity cover' : 'possible working capital tightness'}.</p>
+    <p>• <strong>Leverage Exposure:</strong> Debt-to-Equity is <strong>${formatRatio(deRatio)}</strong>, while the Debt Ratio is <strong>${formatPercent(debtRatio)}</strong> of total assets.</p>
+  `;
+
+  // Render Ratios Trend Chart
+  if (charts.ratiosTrend) charts.ratiosTrend.destroy();
+  charts.ratiosTrend = new Chart(document.getElementById('chRatiosTrend'), {
+    type: 'line',
+    data: {
+      labels: [y1Name, y2Name, y3Name],
+      datasets: [
+        {
+          label: 'Net Margin (%)',
+          data: [npmY1, npmY2, npmY3],
+          borderColor: 'var(--ok)',
+          backgroundColor: 'transparent',
+          borderWidth: 3,
+          tension: 0.15,
+          pointBackgroundColor: 'var(--ok)'
+        },
+        {
+          label: 'EBITDA Margin (%)',
+          data: [ebitdaMarY1, ebitdaMarY2, ebitdaMarY3],
+          borderColor: 'var(--p1)',
+          backgroundColor: 'transparent',
+          borderWidth: 3,
+          tension: 0.15,
+          pointBackgroundColor: 'var(--p1)'
+        },
+        {
+          label: 'Operating Margin (%)',
+          data: [opMarY1, opMarY2, opMarY3],
+          borderColor: 'var(--p2)',
+          backgroundColor: 'transparent',
+          borderWidth: 3,
+          tension: 0.15,
+          pointBackgroundColor: 'var(--p2)'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, labels: { color: '#94A3B8', boxWidth: 12 } }
+      },
+      scales: {
+        x: { ticks: { color: '#94A3B8' }, grid: { color: 'rgba(255,255,255,.04)' } },
+        y: { ticks: { color: '#94A3B8', callback: v => v.toFixed(0) + '%' }, grid: { color: 'rgba(255,255,255,.04)' } }
+      }
+    }
+  });
+
+  goPage(5);
+}
+</script>
+</body>
+</html>
